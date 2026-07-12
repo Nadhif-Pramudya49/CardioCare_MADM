@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Font Family definitions */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  
+  /* CardioCare Clinical Vitality Custom Colors - Re-themed to Professional Polish */
+  --color-surface: #f8fafc; /* bg-slate-50 */
+  --color-surface-dim: #cbd5e1; /* border-slate-300 */
+  --color-surface-bright: #ffffff; /* bg-white */
+  --color-surface-container-lowest: #ffffff; /* bg-white */
+  --color-surface-container-low: #f8fafc; /* bg-slate-50 */
+  --color-surface-container: #f1f5f9; /* bg-slate-100 */
+  --color-surface-container-high: #e2e8f0; /* bg-slate-200 */
+  --color-surface-container-highest: #cbd5e1; /* border-slate-300 */
+  --color-on-surface: #0f172a; /* text-slate-900 */
+  --color-on-surface-variant: #64748b; /* text-slate-500 */
+  --color-inverse-surface: #0f172a; 
+  --color-inverse-on-surface: #f8fafc;
+  --color-outline: #94a3b8; /* text-slate-400 */
+  --color-outline-variant: #e2e8f0; /* border-slate-200 */
+  --color-surface-tint: #2563eb; /* blue-600 */
+  
+  --color-primary: #2563eb; /* Corporate Blue */
+  --color-on-primary: #ffffff;
+  --color-primary-container: #eff6ff; /* blue-50 */
+  --color-on-primary-container: #1d4ed8; /* blue-700 */
+  --color-inverse-primary: #60a5fa; /* blue-400 */
+  
+  --color-secondary: #475569; /* slate-600 */
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #f1f5f9; /* slate-100 */
+  --color-on-secondary-container: #1e293b; /* slate-800 */
+  
+  --color-tertiary: #0ea5e9; /* sky-500 */
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #e0f2fe; /* sky-100 */
+  --color-on-tertiary-container: #0369a1; /* sky-700 */
+  
+  --color-error: #ef4444; /* red-500 */
+  --color-on-error: #ffffff;
+  --color-error-container: #fee2e2; /* red-100 */
+  --color-on-error-container: #991b1b; /* red-800 */
+  
+  --color-primary-fixed: #dbeafe; /* blue-100 */
+  --color-primary-fixed-dim: #93c5fd; /* blue-300 */
+  --color-on-primary-fixed: #1e3a8a; /* blue-900 */
+  --color-on-primary-fixed-variant: #1d4ed8; /* blue-700 */
+  
+  --color-secondary-fixed: #e2e8f0;
+  --color-secondary-fixed-dim: #cbd5e1;
+  --color-on-secondary-fixed: #0f172a;
+  --color-on-secondary-fixed-variant: #334155;
+  
+  --color-tertiary-fixed: #e0e3e6;
+  --color-tertiary-fixed-dim: #c4c7ca;
+  --color-on-tertiary-fixed: #191c1e;
+  --color-on-tertiary-fixed-variant: #44474a;
+  
+  --color-background: #f8fafc; /* Slate-50 background for clean look */
+  --color-on-background: #0f172a; /* Slate-900 text */
+  --color-surface-variant: #f1f5f9;
+}
+
+@layer utilities {
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'liga';
+  }
+  
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+  }
+
+  .glass-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+  }
+  
+  /* Custom scrollbar hider */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+}
