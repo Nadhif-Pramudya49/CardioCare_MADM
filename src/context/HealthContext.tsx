@@ -34,6 +34,7 @@ interface HealthContextType {
     lastSynced: string;
     deviceName: string;
   };
+  toggleDeviceConnection: () => void;
   triggerHeartRateFluctuation: () => void;
   isLoggedIn: boolean;
   login: (name?: string, gender?: 'Laki-laki' | 'Perempuan', age?: number) => void;
@@ -249,7 +250,12 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Calculate TOPSIS scores automatically when patients metrics or weights change
   useEffect(() => {
     if (patients.length === 0) return;
-    const scores = solveTopsis(patients, criteriaWeights);
+    const topsisPatients = deviceStatus.isConnected ? patients : patients.map(p => ({
+      ...p,
+      heartRate: 70,          // Normal resting HR (0 risk)
+      physicalActivity: 1.0   // Max physical activity (0 risk)
+    }));
+    const scores = solveTopsis(topsisPatients, criteriaWeights);
     setPatients(prev => {
       if (prev.length === 0) return prev;
       return prev.map((p, idx) => {
@@ -265,7 +271,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
       });
     });
-  }, [criteriaWeights, patients.length]); // Calculate on weight change or patient load
+  }, [criteriaWeights, patients.length, deviceStatus.isConnected]); // Calculate on weight change, patient load, or connection change
 
   const fallbackPatient: Patient = {
     id: '',
@@ -320,8 +326,8 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addManualEntry = (entry: Omit<ManualEntry, 'id' | 'date' | 'topsisScore'>) => {
     if (!isLoggedIn) return;
     const symptomsList: string[] = [];
-    if (entry.symptoms.chestPain) symptomsList.push('Nyeri Dada (Chest Pain)');
-    if (entry.symptoms.shortnessOfBreath) symptomsList.push('Sesak Napas (Shortness of Breath)');
+    if (entry.symptoms.chestPain) symptomsList.push('Nyeri Dada');
+    if (entry.symptoms.shortnessOfBreath) symptomsList.push('Sesak Napas');
     if (entry.symptoms.palpitation) symptomsList.push('Palpitasi Jantung');
     if (entry.symptoms.extremeFatigue) symptomsList.push('Kelelahan Ekstrim');
 
@@ -348,7 +354,12 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
 
       // Recalculate TOPSIS scores with the new metrics
-      const newScores = solveTopsis(updated, criteriaWeights);
+      const topsisPatients = deviceStatus.isConnected ? updated : updated.map(p => ({
+        ...p,
+        heartRate: 70,          // Normal resting HR (0 risk)
+        physicalActivity: 1.0   // Max physical activity (0 risk)
+      }));
+      const newScores = solveTopsis(topsisPatients, criteriaWeights);
       return updated.map((p, idx) => {
         const score = newScores[idx] !== undefined ? newScores[idx] : p.topsisScore;
         let risk: 'Tinggi' | 'Sedang' | 'Rendah' = 'Rendah';
@@ -365,6 +376,14 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Simulates connecting to the smartwatch and fetching real-time cardiovascular vitals
+  const toggleDeviceConnection = () => {
+    setDeviceStatus(prev => ({
+      ...prev,
+      isConnected: !prev.isConnected
+    }));
+    triggerToast(`Smartwatch berhasil ${!deviceStatus.isConnected ? 'dihubungkan' : 'diputuskan'}.`, !deviceStatus.isConnected ? 'success' : 'warning');
+  };
+
   const syncDevice = async () => {
     if (!isLoggedIn) return;
     setIsSyncing(true);
@@ -453,6 +472,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isSyncing,
         deviceStatus,
         triggerHeartRateFluctuation,
+        toggleDeviceConnection,
         isLoggedIn,
         login,
         logout,

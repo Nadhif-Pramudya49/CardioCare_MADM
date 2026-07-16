@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHealth } from '../context/HealthContext';
 import { CriteriaWeight } from '../types';
+import { ImageModal } from './ImageModal';
 import { 
   ArrowUpRight, 
   ArrowDownRight, 
@@ -33,6 +34,15 @@ export const AnalysisView: React.FC = () => {
 
   const [showWeightEditor, setShowWeightEditor] = useState<boolean>(false);
   const [editingWeights, setEditingWeights] = useState<CriteriaWeight[]>(criteriaWeights);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, imageSrc: '', title: '' });
+
+  const openModal = (title: string, imageSrc: string) => {
+    setModalConfig({ isOpen: true, title, imageSrc: `/assets/${imageSrc}` });
+  };
+
+  const closeModal = () => {
+    setModalConfig(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Normalizes weights so that they always sum to exactly 1.0 (100%)
   const handleWeightChange = (id: string, newPercentageValue: number) => {
@@ -121,11 +131,11 @@ export const AnalysisView: React.FC = () => {
     const physicalActivityRisk = 1.0 - p.physicalActivity;
 
     return [
-      { id: 'c1', label: 'Tekanan Darah', valStr: `${p.systolic}/${p.diastolic} mmHg`, targetStr: '120/80 mmHg', risk: bpRisk },
-      { id: 'c2', label: 'Detak Jantung Istirahat', valStr: `${p.heartRate} BPM`, targetStr: '60-80 BPM', risk: hrRisk },
-      { id: 'c3', label: 'Komorbiditas & Medis', valStr: `${(p.comorbidities * 100).toFixed(0)}% Kerentanan`, targetStr: '0% (Tanpa Riwayat)', risk: comorbiditiesRisk },
-      { id: 'c4', label: 'Indeks Massa Tubuh (BMI)', valStr: `${p.bmi.toFixed(1)} kg/m²`, targetStr: '18.5 - 24.9', risk: bmiRisk },
-      { id: 'c5', label: 'Level Aktivitas Fisik', valStr: `${(p.physicalActivity * 100).toFixed(0)}% Intensitas`, targetStr: '100% Aktif', risk: physicalActivityRisk },
+      { id: 'c1', label: 'Tekanan Darah', valStr: `${p.systolic}/${p.diastolic} mmHg`, targetStr: '120/80 mmHg', risk: bpRisk, imageSrc: 'Tekanan Darah.jpg', imageTitle: 'Referensi Tekanan Darah' },
+      { id: 'c2', label: 'Detak Jantung Istirahat', valStr: `${p.heartRate} BPM`, targetStr: '60-80 BPM', risk: hrRisk, imageSrc: 'Tabel Detak Jantung.png', imageTitle: 'Referensi Detak Jantung' },
+      { id: 'c3', label: 'Komorbiditas & Medis', valStr: `${(p.comorbidities * 100).toFixed(0)}% Kerentanan`, targetStr: '0% (Tanpa Riwayat)', risk: comorbiditiesRisk, imageSrc: '', imageTitle: '' },
+      { id: 'c4', label: 'Indeks Massa Tubuh (BMI)', valStr: `${p.bmi.toFixed(1)} kg/m²`, targetStr: '18.5 - 24.9', risk: bmiRisk, imageSrc: 'Tabel BMI.jpg', imageTitle: 'Referensi BMI' },
+      { id: 'c5', label: 'Level Aktivitas Fisik', valStr: `${(p.physicalActivity * 100).toFixed(0)}% Intensitas`, targetStr: '100% Aktif', risk: physicalActivityRisk, imageSrc: '', imageTitle: '' },
     ];
   };
 
@@ -309,7 +319,18 @@ export const AnalysisView: React.FC = () => {
               <div key={rf.id} className="p-3 border border-slate-100 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-700">{rf.label}</h4>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h4 className="text-xs font-bold text-slate-700">{rf.label}</h4>
+                      {rf.imageSrc && (
+                        <button
+                          onClick={() => openModal(rf.imageTitle, rf.imageSrc)}
+                          className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
+                        >
+                          <Info className="w-3 h-3" />
+                          Detail
+                        </button>
+                      )}
+                    </div>
                     <p className="text-[10px] text-slate-400 font-bold">
                       Nilai Saat Ini: <span className="text-slate-600 font-extrabold">{rf.valStr}</span> (Target Optimal: {rf.targetStr})
                     </p>
@@ -495,6 +516,13 @@ export const AnalysisView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ImageModal 
+        isOpen={modalConfig.isOpen} 
+        onClose={closeModal} 
+        imageSrc={modalConfig.imageSrc} 
+        title={modalConfig.title} 
+      />
     </div>
   );
 };

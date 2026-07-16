@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HealthProvider, useHealth } from './context/HealthContext';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
@@ -15,7 +15,27 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { LoginModal } from './components/LoginModal';
 
 const LayoutShell: React.FC = () => {
-  const { activeView } = useHealth();
+  const { activeView, isLoggedIn, setShowLoginModal, showLoginModal } = useHealth();
+
+  // Auto-show login popup every 30 seconds when user is not logged in
+  useEffect(() => {
+    if (isLoggedIn) return;
+
+    // Show immediately on first load if not logged in (after a short delay)
+    const initialTimer = setTimeout(() => {
+      if (!isLoggedIn) setShowLoginModal(true);
+    }, 3000);
+
+    // Then repeat every 30 seconds
+    const interval = setInterval(() => {
+      if (!isLoggedIn) setShowLoginModal(true);
+    }, 30000);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
+  }, [isLoggedIn]);
 
   const renderActiveView = () => {
     switch (activeView) {

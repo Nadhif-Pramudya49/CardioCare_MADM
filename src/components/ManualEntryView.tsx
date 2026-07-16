@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useHealth } from '../context/HealthContext';
-import { ShieldAlert, History, Activity, Sparkles, Check } from 'lucide-react';
+import { ShieldAlert, History, Activity, Sparkles, Check, Info } from 'lucide-react';
+import { ImageModal } from './ImageModal';
 
 export const ManualEntryView: React.FC = () => {
-  const { selectedPatient, addManualEntry, isLoggedIn, setShowLoginModal, triggerConfirm, triggerToast } = useHealth();
+  const { selectedPatient, addManualEntry, isLoggedIn, setShowLoginModal, triggerConfirm, triggerToast, setActiveView } = useHealth();
 
   // Populate form with current selected patient's values initially
   const [systolic, setSystolic] = useState<number>(selectedPatient ? selectedPatient.systolic : 120);
@@ -18,10 +19,21 @@ export const ManualEntryView: React.FC = () => {
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [hasSavedSession, setHasSavedSession] = useState<boolean>(false);
   const [lastEntry, setLastEntry] = useState({
     date: '12 Okt 2023',
     score: 0.84
   });
+
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, imageSrc: '', title: '' });
+  
+  const openModal = (title: string, imageSrc: string) => {
+    setModalConfig({ isOpen: true, title, imageSrc: `/assets/${imageSrc}` });
+  };
+  
+  const closeModal = () => {
+    setModalConfig(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Keep form in sync if user changes patient via navbar dropdown
   useEffect(() => {
@@ -89,6 +101,7 @@ export const ManualEntryView: React.FC = () => {
 
       setIsSaving(false);
       setSaveSuccess(true);
+      setHasSavedSession(true);
 
       setTimeout(() => {
         setSaveSuccess(false);
@@ -136,9 +149,19 @@ export const ManualEntryView: React.FC = () => {
             </div>
             
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                Sistolik (mmHg)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
+                  Sistolik (mmHg)
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => openModal('Referensi Tekanan Darah', 'Tabel Tekanan Darah.jpg')}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
+                >
+                  <Info className="w-3 h-3" />
+                  Detail
+                </button>
+              </div>
               <input 
                 type="number"
                 value={systolic}
@@ -150,9 +173,19 @@ export const ManualEntryView: React.FC = () => {
             </div>
             
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                Diastolik (mmHg)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
+                  Diastolik (mmHg)
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => openModal('Referensi Tekanan Darah', 'Tekanan Darah.jpg')}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
+                >
+                  <Info className="w-3 h-3" />
+                  Detail
+                </button>
+              </div>
               <input 
                 type="number"
                 value={diastolic}
@@ -174,9 +207,19 @@ export const ManualEntryView: React.FC = () => {
             </div>
             
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                Kolesterol Total (mg/dL)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
+                  Kolesterol Total (mg/dL)
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => openModal('Referensi Kadar Kolesterol', 'tabel kolesterol.jpg')}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
+                >
+                  <Info className="w-3 h-3" />
+                  Detail
+                </button>
+              </div>
               <input 
                 type="number"
                 value={cholesterol}
@@ -188,9 +231,19 @@ export const ManualEntryView: React.FC = () => {
             </div>
             
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                Gula Darah (mg/dL)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
+                  Gula Darah (mg/dL)
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => openModal('Referensi Gula Darah', 'tabel gula darah.png')}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
+                >
+                  <Info className="w-3 h-3" />
+                  Detail
+                </button>
+              </div>
               <input 
                 type="number"
                 value={bloodSugar}
@@ -221,7 +274,7 @@ export const ManualEntryView: React.FC = () => {
                   onChange={(e) => setChestPain(e.target.checked)}
                   className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary"
                 />
-                <span className="text-sm font-semibold text-on-surface">Nyeri Dada (Chest Pain)</span>
+                <span className="text-sm font-semibold text-on-surface">Nyeri Dada</span>
               </label>
               
               <label className={`flex items-center gap-3 p-3 border rounded-xl hover:bg-surface-container transition-all cursor-pointer group ${
@@ -233,7 +286,7 @@ export const ManualEntryView: React.FC = () => {
                   onChange={(e) => setShortnessOfBreath(e.target.checked)}
                   className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary"
                 />
-                <span className="text-sm font-semibold text-on-surface">Sesak Napas (Shortness of Breath)</span>
+                <span className="text-sm font-semibold text-on-surface">Sesak Napas</span>
               </label>
               
               <label className={`flex items-center gap-3 p-3 border rounded-xl hover:bg-surface-container transition-all cursor-pointer group ${
@@ -278,6 +331,15 @@ export const ManualEntryView: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-4 pt-6 border-t border-surface-container-highest/45">
+            {hasSavedSession && (
+              <button 
+                type="button"
+                onClick={() => setActiveView('analysis')}
+                className="px-6 py-2.5 h-11 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all border border-blue-200"
+              >
+                Lihat Hasil Analisis
+              </button>
+            )}
             <button 
               type="button"
               onClick={handleCancel}
@@ -340,6 +402,13 @@ export const ManualEntryView: React.FC = () => {
           </p>
         </div>
       </div>
+      
+      <ImageModal 
+        isOpen={modalConfig.isOpen} 
+        onClose={closeModal} 
+        imageSrc={modalConfig.imageSrc} 
+        title={modalConfig.title} 
+      />
     </div>
   );
 };

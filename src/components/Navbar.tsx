@@ -4,7 +4,9 @@ import { Bell, Activity, Settings, ShieldAlert, LogIn, LogOut, Watch } from 'luc
 
 export const Navbar: React.FC = () => {
   const { 
+    patients,
     selectedPatient,
+    setSelectedPatientId,
     activeView,
     setActiveView,
     isLoggedIn,
@@ -118,10 +120,21 @@ export const Navbar: React.FC = () => {
           {/* Login/Logout Profile Action */}
           {isLoggedIn ? (
             <div className="flex items-center gap-2.5">
+              {/* Patient Switcher Dropdown */}
+              <select
+                value={selectedPatient.id}
+                onChange={(e) => setSelectedPatientId(e.target.value)}
+                className="hidden lg:block bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+              >
+                {patients.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+
               {/* User Profile avatar */}
               <div 
                 onClick={() => setActiveView('profile')}
-                className="h-9 w-9 rounded-full overflow-hidden border-2 border-blue-600 hover:scale-105 transition-transform cursor-pointer"
+                className="h-9 w-9 rounded-full overflow-hidden border-2 border-blue-600 hover:scale-105 transition-transform cursor-pointer shrink-0"
                 title="Profil Saya"
               >
                 <img 
@@ -136,7 +149,7 @@ export const Navbar: React.FC = () => {
                     logout();
                   });
                 }}
-                className="hidden lg:flex items-center gap-1.5 py-1.5 px-3 hover:bg-slate-100 rounded-lg text-slate-600 text-xs font-semibold cursor-pointer"
+                className="hidden lg:flex items-center gap-1.5 py-1.5 px-3 hover:bg-slate-100 rounded-lg text-slate-600 text-xs font-semibold cursor-pointer shrink-0"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Keluar</span>

@@ -19,15 +19,19 @@ export const DashboardView: React.FC = () => {
     deviceStatus, 
     triggerHeartRateFluctuation,
     isLoggedIn,
-    login
+    login,
+    triggerToast
   } = useHealth();
 
   const [hrHistory, setHrHistory] = useState<number[]>([
     40, 45, 38, 50, 65, 55, 60, 45, 50, 70, 85, 75, 60, 65
   ]);
+  const [chartRange, setChartRange] = useState<'1H' | '6H' | '24H'>('1H');
 
   // Set up minor live fluctuations on the heart rate sparkline to make the medical feed feel alive
   useEffect(() => {
+    if (!deviceStatus.isConnected) return; // Stop fluctuations if device is disconnected
+
     const interval = setInterval(() => {
       triggerHeartRateFluctuation();
       // Fluctuate sparkline history slightly as well
@@ -47,7 +51,7 @@ export const DashboardView: React.FC = () => {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [selectedPatient.id]);
+  }, [selectedPatient.id, deviceStatus.isConnected, triggerHeartRateFluctuation]);
 
   // BP clinical categorization
   const getBPCategory = (sys: number, dia: number) => {
@@ -59,10 +63,13 @@ export const DashboardView: React.FC = () => {
   const bpCat = getBPCategory(selectedPatient.systolic, selectedPatient.diastolic);
 
   // SpO2 mock metrics
-  const spo2Val = selectedPatient.id === '#P-8821' ? 95 : selectedPatient.id === '#P-8824' ? 97 : 98;
+  const spo2Val = !deviceStatus.isConnected ? '--' : (selectedPatient.id === '#P-8821' ? 95 : selectedPatient.id === '#P-8824' ? 97 : 98);
 
   // Active steps mock data
   const getActiveMetrics = () => {
+    if (!deviceStatus.isConnected) {
+      return { steps: '0', calories: '0', distance: '0.0', percent: 0, status: 'Tidak ada data smartwatch' };
+    }
     if (selectedPatient.id === '#P-8821') {
       return { steps: '8.420', calories: '425', distance: '5.2', percent: 75, status: 'Berjalan santai (15 menit)' };
     }
@@ -106,16 +113,16 @@ export const DashboardView: React.FC = () => {
         </div>
         <div className="flex items-center gap-3 self-end sm:self-center">
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-            isLoggedIn 
+            isLoggedIn && deviceStatus.isConnected
               ? 'bg-surface-container text-primary border-primary/10' 
               : 'bg-slate-100 text-slate-500 border-slate-200'
           }`}>
-            <span className={`w-2 h-2 rounded-full ${isLoggedIn ? 'bg-primary animate-ping' : 'bg-slate-400'}`}></span>
-            {isLoggedIn ? 'Terhubung' : 'Terputus (Offline)'}
+            <span className={`w-2 h-2 rounded-full ${isLoggedIn && deviceStatus.isConnected ? 'bg-primary animate-ping' : 'bg-slate-400'}`}></span>
+            {isLoggedIn && deviceStatus.isConnected ? 'Terhubung' : 'Terputus (Offline)'}
           </span>
           <span className="text-on-surface-variant text-xs font-medium flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
-            Update: {isLoggedIn ? deviceStatus.lastSynced : 'Belum disinkronisasi'}
+            Update: {isLoggedIn && deviceStatus.isConnected ? deviceStatus.lastSynced : 'Belum disinkronisasi'}
           </span>
         </div>
       </div>
@@ -127,10 +134,10 @@ export const DashboardView: React.FC = () => {
         <div className="md:col-span-6 lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider block mb-1">Heart Rate</span>
+              <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider block mb-1">Detak Jantung</span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-4xl font-extrabold text-primary tracking-tight font-sans">
-                  {selectedPatient.heartRate}
+                  {deviceStatus.isConnected ? selectedPatient.heartRate : '--'}
                 </span>
                 <span className="text-xs text-on-surface-variant font-bold">BPM</span>
               </div>
@@ -169,7 +176,7 @@ export const DashboardView: React.FC = () => {
         <div className="md:col-span-6 lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider block mb-1">Blood Pressure</span>
+              <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider block mb-1">Tekanan Darah</span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-4xl font-extrabold text-primary tracking-tight font-sans">
                   {selectedPatient.systolic}/{selectedPatient.diastolic}
@@ -213,7 +220,7 @@ export const DashboardView: React.FC = () => {
         <div className="md:col-span-6 lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider block mb-1">Blood Oxygen (SpO2)</span>
+              <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-wider block mb-1">Saturasi Oksigen (SpO2)</span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-4xl font-extrabold text-primary tracking-tight font-sans">{spo2Val}</span>
                 <span className="text-xs text-on-surface-variant font-bold">%</span>
@@ -368,9 +375,24 @@ export const DashboardView: React.FC = () => {
             Riwayat Detak Jantung (24 Jam Terakhir)
           </h3>
           <div className="flex gap-1.5 bg-surface-container-low p-1 rounded-lg border border-surface-container">
-            <button className="px-3.5 py-1 bg-white text-primary shadow-sm rounded-md text-xs font-bold">1H</button>
-            <button onClick={() => alert('Riwayat jangka panjang (6H): data diringkas.')} className="px-3.5 py-1 text-on-surface-variant hover:text-primary rounded-md text-xs font-semibold">6H</button>
-            <button onClick={() => alert('Riwayat jangka panjang (24H): data diringkas.')} className="px-3.5 py-1 text-on-surface-variant hover:text-primary rounded-md text-xs font-semibold">24H</button>
+            <button 
+              onClick={() => { setChartRange('1H'); triggerToast('Menampilkan data detak jantung 1 jam terakhir.', 'info'); }} 
+              className={`px-3.5 py-1 shadow-sm rounded-md text-xs font-bold transition-all ${chartRange === '1H' ? 'bg-white text-primary' : 'text-on-surface-variant hover:text-primary bg-transparent'}`}
+            >
+              1 Jam
+            </button>
+            <button 
+              onClick={() => { setChartRange('6H'); triggerToast('Riwayat jangka menengah (6 Jam) berhasil dimuat.', 'info'); }} 
+              className={`px-3.5 py-1 shadow-sm rounded-md text-xs font-bold transition-all ${chartRange === '6H' ? 'bg-white text-primary' : 'text-on-surface-variant hover:text-primary bg-transparent'}`}
+            >
+              6 Jam
+            </button>
+            <button 
+              onClick={() => { setChartRange('24H'); triggerToast('Riwayat jangka panjang (24 Jam) direkapitulasi.', 'info'); }} 
+              className={`px-3.5 py-1 shadow-sm rounded-md text-xs font-bold transition-all ${chartRange === '24H' ? 'bg-white text-primary' : 'text-on-surface-variant hover:text-primary bg-transparent'}`}
+            >
+              24 Jam
+            </button>
           </div>
         </div>
 
@@ -401,10 +423,10 @@ export const DashboardView: React.FC = () => {
 
         {/* Time Labels */}
         <div className="flex justify-between mt-3 text-xs font-semibold text-on-surface-variant">
-          <span>08:00</span>
-          <span>12:00</span>
-          <span>16:00</span>
-          <span>20:00</span>
+          <span>{chartRange === '1H' ? '08:00' : chartRange === '6H' ? '03:00' : 'Kemarin'}</span>
+          <span>{chartRange === '1H' ? '12:00' : chartRange === '6H' ? '06:00' : '06:00'}</span>
+          <span>{chartRange === '1H' ? '16:00' : chartRange === '6H' ? '09:00' : '12:00'}</span>
+          <span>{chartRange === '1H' ? '20:00' : chartRange === '6H' ? '12:00' : '18:00'}</span>
           <span className="text-primary font-bold">Sekarang ({selectedPatient.heartRate} BPM)</span>
         </div>
       </section>

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { activeView, setActiveView, syncDevice, isSyncing, isLoggedIn, logout, setShowLoginModal, triggerToast, triggerConfirm } = useHealth();
+  const { activeView, setActiveView, syncDevice, isSyncing, isLoggedIn, logout, setShowLoginModal, triggerToast, triggerConfirm, deviceStatus, toggleDeviceConnection } = useHealth();
 
   const menuItems = [
     { id: 'dashboard' as ViewType, label: 'Dashboard Utama', icon: LayoutDashboard },
@@ -74,15 +74,15 @@ export const Sidebar: React.FC = () => {
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-800/30">
           <div className="flex justify-between items-center mb-2">
             <span className="text-slate-400 text-xs font-semibold">Koneksi Smartwatch</span>
-            <span className={`text-xs font-bold ${isLoggedIn ? 'text-green-400' : 'text-slate-500'}`}>
-              {isLoggedIn ? 'Aktif' : 'Offline'}
+            <span className={`text-xs font-bold ${isLoggedIn ? (deviceStatus.isConnected ? 'text-green-400' : 'text-red-400') : 'text-slate-500'}`}>
+              {isLoggedIn ? (deviceStatus.isConnected ? 'Aktif' : 'Terputus') : 'Offline'}
             </span>
           </div>
           <button
-            onClick={syncDevice}
+            onClick={!deviceStatus.isConnected ? toggleDeviceConnection : syncDevice}
             disabled={isSyncing || !isLoggedIn}
             className={`w-full py-2 px-3 text-white rounded-md text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 ${
-              !isLoggedIn 
+              !isLoggedIn
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50' 
                 : 'bg-blue-600 hover:bg-blue-500'
             } ${isSyncing ? 'opacity-70' : ''}`}
@@ -97,6 +97,15 @@ export const Sidebar: React.FC = () => {
 
         {/* Help Center and Logout/Login */}
         <div className="space-y-1">
+          {isLoggedIn && deviceStatus.isConnected && (
+            <button
+              onClick={toggleDeviceConnection}
+              className="flex items-center gap-3 w-full px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-md transition-all text-left text-xs font-medium cursor-pointer mb-1"
+            >
+              <Watch className="h-4 w-4" />
+              <span>Putuskan Smartwatch</span>
+            </button>
+          )}
           <button
             onClick={() => triggerToast('Pusat Bantuan: Silakan hubungi bagian pelayanan medis atau baca panduan di laman Smartwatch untuk bantuan teknis.', 'info')}
             className="flex items-center gap-3 w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-md transition-all text-left text-xs font-medium"
