@@ -119,7 +119,11 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   const [patients, setPatients] = useState<Patient[]>(() => {
     const saved = localStorage.getItem('patients');
-    return saved ? JSON.parse(saved) : initialPatients;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    return initialPatients;
   });
   
   const [selectedPatientId, setSelectedPatientId] = useState<string>(() => {
@@ -128,12 +132,20 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   const [criteriaWeights, setCriteriaWeights] = useState<CriteriaWeight[]>(() => {
     const saved = localStorage.getItem('criteriaWeights');
-    return saved ? JSON.parse(saved) : initialWeights;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    return initialWeights;
   });
   
   const [ahpMatrix, setAhpMatrix] = useState<AHPMatrix>(() => {
     const saved = localStorage.getItem('ahpMatrix');
-    return saved ? JSON.parse(saved) : initialAhpMatrix;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    return initialAhpMatrix;
   });
   
   const [syncHistory, setSyncHistory] = useState<SyncHistory[]>(() => {
