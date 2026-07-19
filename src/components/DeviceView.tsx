@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useHealth } from '../context/HealthContext';
 import { 
   Watch, 
@@ -12,7 +12,8 @@ import {
   Cpu, 
   Bluetooth, 
   ShieldCheck,
-  RefreshCw 
+  RefreshCw,
+  Activity
 } from 'lucide-react';
 
 export const DeviceView: React.FC = () => {
@@ -22,6 +23,9 @@ export const DeviceView: React.FC = () => {
     isSyncing, 
     deviceStatus, 
     selectedPatient,
+    selectedPatientId,
+    setSelectedPatientId,
+    patients,
     isLoggedIn,
     setShowLoginModal,
     triggerToast
@@ -32,6 +36,42 @@ export const DeviceView: React.FC = () => {
   const displayHistory = expandedHistory 
     ? syncHistory 
     : syncHistory.slice(0, 3);
+
+  const [liveHR, setLiveHR] = useState<number>(selectedPatient?.heartRate || 70);
+  const [liveBattery, setLiveBattery] = useState<number>(deviceStatus.battery || 84);
+  const [liveSignal, setLiveSignal] = useState<string>(deviceStatus.signal || 'Kuat');
+
+  useEffect(() => {
+    if (selectedPatient) {
+      setLiveHR(selectedPatient.heartRate);
+    }
+  }, [selectedPatient]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // 1. Live Heart Rate Fluctuation
+      setLiveHR(prev => {
+        if (!selectedPatient) return prev;
+        const base = selectedPatient.heartRate;
+        const variance = Math.floor(Math.random() * 5) - 2; // Fluctuate -2 to +2
+        return base + variance;
+      });
+
+      // 2. Live Signal Fluctuation (15% chance to change per tick)
+      if (Math.random() > 0.85) {
+        const r = Math.random();
+        if (r > 0.9) setLiveSignal('Sedang');
+        else if (r > 0.6) setLiveSignal('Sangat Kuat');
+        else setLiveSignal('Kuat');
+      }
+
+      // 3. Live Battery Drain (5% chance to drop 1% per tick, simulating usage)
+      if (Math.random() > 0.95) {
+        setLiveBattery(prev => Math.max(1, prev - 1));
+      }
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [selectedPatient]);
 
   const handleDeviceSetup = () => {
     triggerToast('Pengaturan Perangkat: Membuka panel konfigurasi protokol sensor Apple Watch Series 9...', 'info');
@@ -96,25 +136,49 @@ export const DeviceView: React.FC = () => {
                 Terhubung
               </span>
               <h3 className="font-sans text-xl font-bold text-primary">{deviceStatus.deviceName}</h3>
-              <p className="text-xs text-on-surface-variant font-semibold">Sinkronisasi terakhir: {deviceStatus.lastSynced}</p>
+              <p className="text-xs text-on-surface-variant font-semibold mb-3">Sinkronisasi terakhir: {deviceStatus.lastSynced}</p>
+              
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Perangkat terpasang pada:</span>
+                <select
+                  value={selectedPatientId}
+                  onChange={(e) => setSelectedPatientId(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 cursor-pointer w-full max-w-[250px] font-bold shadow-sm"
+                >
+                  {patients.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Batteries / Signal widgets */}
-            <div className="grid grid-cols-2 gap-4 py-1">
-              <div className="bg-surface-container-low/60 rounded-xl p-3 border border-surface-container/20">
+            {/* Live Metrics / Batteries / Signal widgets */}
+            <div className="grid grid-cols-3 gap-4 py-1">
+              {/* Heart Rate Widget */}
+              <div className="bg-red-50/60 rounded-xl p-3 border border-red-100 flex flex-col justify-center">
+                <div className="flex items-center justify-center md:justify-start gap-1.5 text-red-600 mb-1">
+                  <Activity className="h-4 w-4 animate-pulse" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Heart Rate</span>
+                </div>
+                <div className="text-2xl font-extrabold text-red-700 font-sans flex items-baseline gap-1 justify-center md:justify-start">
+                  {liveHR} <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider">BPM</span>
+                </div>
+              </div>
+
+              <div className="bg-surface-container-low/60 rounded-xl p-3 border border-surface-container/20 flex flex-col justify-center">
                 <div className="flex items-center justify-center md:justify-start gap-1.5 text-primary mb-1">
                   <BatteryCharging className="h-4 w-4" />
                   <span className="text-[10px] font-bold uppercase tracking-wider">Baterai</span>
                 </div>
-                <div className="text-2xl font-extrabold text-on-surface font-sans">{deviceStatus.battery}%</div>
+                <div className="text-2xl font-extrabold text-on-surface font-sans text-center md:text-left">{liveBattery}%</div>
               </div>
               
-              <div className="bg-surface-container-low/60 rounded-xl p-3 border border-surface-container/20">
+              <div className="bg-surface-container-low/60 rounded-xl p-3 border border-surface-container/20 flex flex-col justify-center">
                 <div className="flex items-center justify-center md:justify-start gap-1.5 text-primary mb-1">
-                  <Signal className="h-4 w-4" />
+                  <Signal className={`h-4 w-4 ${liveSignal === 'Sedang' ? 'text-yellow-500' : 'text-primary'}`} />
                   <span className="text-[10px] font-bold uppercase tracking-wider">Sinyal</span>
                 </div>
-                <div className="text-2xl font-extrabold text-on-surface font-sans">{deviceStatus.signal}</div>
+                <div className="text-2xl font-extrabold text-on-surface font-sans text-center md:text-left">{liveSignal}</div>
               </div>
             </div>
 
@@ -151,7 +215,7 @@ export const DeviceView: React.FC = () => {
               </h4>
             </div>
 
-            <div className="space-y-3">
+            <div className={`space-y-3 pr-1 ${expandedHistory ? 'max-h-[300px] overflow-y-auto' : ''} [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full`}>
               {displayHistory.map((item) => (
                 <div 
                   key={item.id} 

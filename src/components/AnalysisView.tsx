@@ -7,7 +7,8 @@ import {
   ArrowDownRight, 
   Minus, 
   FileDown, 
-  SlidersHorizontal, 
+  ArrowLeft,
+  SlidersHorizontal,
   X, 
   Heart, 
   Activity, 
@@ -25,15 +26,13 @@ export const AnalysisView: React.FC = () => {
   const { 
     selectedPatient,
     criteriaWeights, 
-    setCriteriaWeights,
+    setActiveView,
     isLoggedIn,
     setShowLoginModal,
     triggerToast,
     triggerConfirm
   } = useHealth();
 
-  const [showWeightEditor, setShowWeightEditor] = useState<boolean>(false);
-  const [editingWeights, setEditingWeights] = useState<CriteriaWeight[]>(criteriaWeights);
   const [modalConfig, setModalConfig] = useState({ isOpen: false, imageSrc: '', title: '' });
 
   const openModal = (title: string, imageSrc: string) => {
@@ -42,44 +41,6 @@ export const AnalysisView: React.FC = () => {
 
   const closeModal = () => {
     setModalConfig(prev => ({ ...prev, isOpen: false }));
-  };
-
-  // Normalizes weights so that they always sum to exactly 1.0 (100%)
-  const handleWeightChange = (id: string, newPercentageValue: number) => {
-    const rawVal = newPercentageValue / 100;
-    
-    const updated = editingWeights.map(w => {
-      if (w.id === id) {
-        return { ...w, weight: rawVal };
-      }
-      return w;
-    });
-
-    // Sum of others
-    const sumOthers = updated.reduce((sum, w) => w.id !== id ? sum + w.weight : sum, 0);
-    const targetOthers = 1.0 - rawVal;
-
-    // Rescale others proportionally
-    const rescaled = updated.map(w => {
-      if (w.id === id) return w;
-      if (sumOthers === 0) {
-        // Equal distribution for others if they were all zero
-        return { ...w, weight: targetOthers / (updated.length - 1) };
-      }
-      return { ...w, weight: (w.weight / sumOthers) * targetOthers };
-    });
-
-    setEditingWeights(rescaled);
-  };
-
-  const saveNewWeights = () => {
-    const finalized = editingWeights.map(w => ({
-      ...w,
-      weight: Math.round(w.weight * 1000) / 1000
-    }));
-    setCriteriaWeights(finalized);
-    setShowWeightEditor(false);
-    triggerToast('Bobot kriteria AHP berhasil dimutakhirkan! Skor risiko kardiovaskular Anda telah dihitung ulang secara real-time.', 'success');
   };
 
   if (!isLoggedIn) {
@@ -172,14 +133,11 @@ export const AnalysisView: React.FC = () => {
           </button>
           
           <button 
-            onClick={() => {
-              setEditingWeights(criteriaWeights);
-              setShowWeightEditor(true);
-            }}
+            onClick={() => setActiveView('ranking')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-98 transition-all cursor-pointer"
           >
-            <SlidersHorizontal className="h-4 w-4" />
-            <span>Kustomisasi Bobot AHP</span>
+            <ArrowLeft className="h-4 w-4" />
+            <span>Kembali ke Tabel Ranking</span>
           </button>
         </div>
       </div>
@@ -430,65 +388,7 @@ export const AnalysisView: React.FC = () => {
 
       </div>
 
-      {/* Interactive Weight Matrix Editor Modal */}
-      {showWeightEditor && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-[9995]">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 flex flex-col gap-5 animate-fade-in">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-sans text-base font-bold text-slate-800 flex items-center gap-2">
-                <SlidersHorizontal className="h-5 w-5 text-blue-600" />
-                Kustomisasi Pembobotan AHP
-              </h3>
-              <button 
-                onClick={() => setShowWeightEditor(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
 
-            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-              Anda dapat bereksperimen menyesuaikan prioritas kepentingan klinis kriteria kesehatan di bawah ini. Hasil pembobotan akan dinormalisasi otomatis agar jumlahnya bernilai 100%.
-            </p>
-
-            <div className="space-y-4.5 my-2">
-              {editingWeights.map(w => (
-                <div key={w.id} className="space-y-1">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-700">{w.name.split(' (')[0]}</span>
-                    <span className="text-blue-600 font-black">{(w.weight * 100).toFixed(0)}%</span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-medium">{w.description}</p>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="90"
-                    value={Math.round(w.weight * 100)}
-                    onChange={(e) => handleWeightChange(w.id, Number(e.target.value))}
-                    className="w-full accent-blue-600 cursor-ew-resize h-1.5 bg-slate-100 rounded-lg"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-              <button 
-                onClick={() => setShowWeightEditor(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
-              >
-                Batal
-              </button>
-              <button 
-                onClick={saveNewWeights}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <Check className="h-4 w-4" />
-                <span>Simpan & Terapkan</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Methodology & informational block row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

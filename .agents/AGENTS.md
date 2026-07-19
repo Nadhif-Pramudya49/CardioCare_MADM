@@ -1,0 +1,1 @@
+- GitHub Rules: JANGAN melakukan "git push" ke GitHub kecuali diperintahkan secara eksplisit oleh pengguna.

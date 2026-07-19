@@ -5,19 +5,35 @@ import {
   LayoutDashboard, 
   Activity, 
   Plus, 
-  FileEdit, 
-  User,
-  Stethoscope
+  Trophy,
+  FileText,
+  Scale,
+  HelpCircle,
+  Calculator
 } from 'lucide-react';
 
 export const MobileNav: React.FC = () => {
-  const { activeView, setActiveView } = useHealth();
+  const { activeView, setActiveView, isLoggedIn, currentUser } = useHealth();
+  
+  const role = isLoggedIn && currentUser ? currentUser.role : 'dokter';
+
+  const centerAction = role === 'admin'
+    ? { id: 'manual-entry' as ViewType, icon: Plus, title: 'Input Data' }
+    : { id: 'consultation' as ViewType, icon: FileText, title: 'Catatan Medis' };
+
+  const thirdTab = role === 'admin'
+    ? { id: 'calculation-detail' as ViewType, label: 'Hitungan', icon: Calculator }
+    : { id: 'analysis' as ViewType, label: 'Analisis', icon: Activity };
+
+  const fourthTab = role === 'admin'
+    ? { id: 'ahp-setup' as ViewType, label: 'Bobot AHP', icon: Scale }
+    : { id: 'tutorial' as ViewType, label: 'Panduan', icon: HelpCircle };
 
   const tabs = [
     { id: 'dashboard' as ViewType, label: 'Utama', icon: LayoutDashboard },
-    { id: 'consultation' as ViewType, label: 'Tanya Dokter', icon: Stethoscope },
-    { id: 'analysis' as ViewType, label: 'Analisis', icon: Activity },
-    { id: 'profile' as ViewType, label: 'Profil', icon: User },
+    { id: 'ranking' as ViewType, label: 'Ranking', icon: Trophy },
+    thirdTab,
+    fourthTab,
   ];
 
   return (
@@ -39,14 +55,14 @@ export const MobileNav: React.FC = () => {
         );
       })}
 
-      {/* Central Floating Button for Manual Entry */}
+      {/* Central Floating Button */}
       <div className="relative -top-5 shrink-0 px-2">
         <button
-          onClick={() => setActiveView('manual-entry')}
+          onClick={() => setActiveView(centerAction.id)}
           className="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
-          title="Input Data"
+          title={centerAction.title}
         >
-          <Plus className="h-6 w-6" />
+          <centerAction.icon className="h-6 w-6" />
         </button>
       </div>
 

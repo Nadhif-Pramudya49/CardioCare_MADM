@@ -1,4 +1,4 @@
-import { Patient, CriteriaWeight } from '../types';
+import { Patient, CriteriaWeight, TopsisResult } from '../types';
 
 /**
  * Calculates individual risk metrics for each criterion (0 to 1 scale, where 1 is maximum risk/worst)
@@ -43,7 +43,7 @@ export function calculatePatientRiskMatrix(patients: Patient[]): number[][] {
  * - Medium Ci (0.40 - 0.70) -> Medium Risk
  * - Low Ci (< 0.40) -> Low Risk
  */
-export function solveTopsis(patients: Patient[], weights: CriteriaWeight[]): number[] {
+export function solveTopsis(patients: Patient[], weights: CriteriaWeight[]): TopsisResult[] {
   if (patients.length === 0) return [];
 
   // Step 1: Establish Decision Matrix
@@ -73,10 +73,6 @@ export function solveTopsis(patients: Patient[], weights: CriteriaWeight[]): num
   }
 
   // Step 4: Determine Positive Ideal Solution (A+) and Negative Ideal Solution (A-)
-  // In our formulation:
-  // Since all normalized columns are COST variables (higher is worse risk),
-  // positive ideal (A+) is the MAX value (worst state - maximum risk).
-  // negative ideal (A-) is the MIN value (best state - minimum risk).
   const APlus = Array(n).fill(-Infinity);
   const AMinus = Array(n).fill(Infinity);
 
@@ -88,8 +84,8 @@ export function solveTopsis(patients: Patient[], weights: CriteriaWeight[]): num
   }
 
   // Step 5: Calculate Separation Measures
-  const SPlus = Array(m).fill(0); // distance to worst (positive ideal)
-  const SMinus = Array(m).fill(0); // distance to best (negative ideal)
+  const SPlus = Array(m).fill(0);
+  const SMinus = Array(m).fill(0);
 
   for (let i = 0; i < m; i++) {
     let sumSqPlus = 0;
@@ -102,18 +98,40 @@ export function solveTopsis(patients: Patient[], weights: CriteriaWeight[]): num
     SMinus[i] = Math.sqrt(sumSqMinus);
   }
 
-  // Step 6: Calculate Relative Closeness Ci to the ideal solution.
-  // Note: To make Ci directly match the risk ratio (closer to worst/positive ideal means HIGHER risk index):
-  // Let Ci = SMinus / (SPlus + SMinus) where:
-  // SMinus is the distance to A- (the minimum risk/healthiest state)
-  // SPlus is the distance to A+ (the maximum risk/unhealthiest state)
-  // If SMinus is large (very far from healthy, i.e., sick), then Ci is high (close to 1).
-  // If SMinus is small (very close to healthy, i.e., well), then Ci is low (close to 0).
-  return patients.map((_, i) => {
+  // Step 6: Calculate Relative Closeness Ci
+  const rawScores = patients.map((_, i) => {
     const total = SPlus[i] + SMinus[i];
     if (total === 0) return 0.5;
     const score = SMinus[i] / total;
-    // Round to 3 decimal places
     return Math.round(score * 1000) / 1000;
   });
+
+  // Calculate ranking and recommendations
+  const sortedIndices = rawScores
+    .map((score, index) => ({ score, index }))
+    .sort((a, b) => b.score - a.score);
+
+  const results: TopsisResult[] = new Array(patients.length);
+  
+  sortedIndices.forEach((item, sortedIndex) => {
+    const rank = sortedIndex + 1;
+    let recommendation = 'Kondisi Terkontrol';
+    
+    if (rank <= 3) {
+      recommendation = 'Penanganan Segera';
+    } else if (rank <= 6) {
+      recommendation = 'Perlu Konsultasi Lanjutan';
+    } else if (rank <= 10) {
+      recommendation = 'Kontrol Rutin';
+    }
+
+    results[item.index] = {
+      patientId: patients[item.index].id,
+      score: item.score,
+      rank,
+      recommendation
+    };
+  });
+
+  return results;
 }

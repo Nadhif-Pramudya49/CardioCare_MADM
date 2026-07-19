@@ -13,6 +13,11 @@ import { ConsultationView } from './components/ConsultationView';
 import { ToastNotification } from './components/ToastNotification';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { LoginModal } from './components/LoginModal';
+import { AHPSetupView } from './components/AHPSetupView';
+import { RankingView } from './components/RankingView';
+import { CalculationDetailView } from './components/CalculationDetailView';
+import { AboutSystemView } from './components/AboutSystemView';
+import { TutorialView } from './components/TutorialView';
 
 const LayoutShell: React.FC = () => {
   const { activeView, isLoggedIn, setShowLoginModal, showLoginModal } = useHealth();
@@ -51,6 +56,16 @@ const LayoutShell: React.FC = () => {
         return <ConsultationView />;
       case 'profile':
         return <ProfileView />;
+      case 'ahp-setup':
+        return <AHPSetupView />;
+      case 'ranking':
+        return <RankingView />;
+      case 'calculation-detail':
+        return <CalculationDetailView />;
+      case 'about':
+        return <AboutSystemView />;
+      case 'tutorial':
+        return <TutorialView />;
       default:
         return <DashboardView />;
     }

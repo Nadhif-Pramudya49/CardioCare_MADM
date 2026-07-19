@@ -1,17 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useHealth } from '../context/HealthContext';
-import { Bell, Activity, Settings, ShieldAlert, LogIn, LogOut, Watch } from 'lucide-react';
+import { Settings, LogIn, LogOut, User, Watch, HelpCircle, Info } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { 
-    patients,
     selectedPatient,
-    setSelectedPatientId,
     activeView,
     setActiveView,
     isLoggedIn,
+    currentUser,
     logout,
-    deviceStatus,
     setShowLoginModal,
     triggerToast,
     triggerConfirm
@@ -19,26 +17,30 @@ export const Navbar: React.FC = () => {
 
   const handleEmergencyClick = () => {
     if (!isLoggedIn) {
-      triggerToast('Silakan login terlebih dahulu untuk mengaktifkan fitur panggilan darurat.', 'warning');
+      triggerToast('Silakan login terlebih dahulu untuk mengaktifkan fitur peringatan.', 'warning');
       return;
     }
-    triggerToast(`DARURAT! Sinyal darurat medis kardiovaskular dikirimkan untuk Anda (${selectedPatient.name}). Tim kardiologi klinik telah dihubungi.`, 'error');
+    triggerToast(`PERINGATAN! Sinyal atensi dikirimkan ke tim kardiologi untuk Pasien ${selectedPatient.name}.`, 'error');
   };
 
   const getViewTitle = () => {
     switch (activeView) {
       case 'dashboard':
         return 'Dashboard Utama';
+      case 'ranking':
+        return 'Ranking Pasien';
       case 'manual-entry':
-        return 'Input Data Mandiri';
+        return 'Data Master Pasien';
       case 'analysis':
-        return 'Analisis Risiko';
-      case 'device':
-        return 'Integrasi Smartwatch';
+        return 'Analisis Detail';
       case 'consultation':
-        return 'Tanya Dokter';
+        return 'Catatan Medis';
       case 'profile':
-        return 'Profil Saya';
+        return 'Profil Tenaga Medis';
+      case 'ahp-setup':
+        return 'Pengaturan Bobot AHP';
+      case 'calculation-detail':
+        return 'Detail Perhitungan TOPSIS';
       default:
         return 'CardioCare Portal';
     }
@@ -50,11 +52,13 @@ export const Navbar: React.FC = () => {
       <div className="flex items-center gap-3">
         <h2 className="font-sans text-lg font-bold text-slate-800">{getViewTitle()}</h2>
         
-        {/* Active Patient Pill Tag */}
-        {isLoggedIn ? (
+        {/* Portal Mode Tag */}
+        {isLoggedIn && currentUser ? (
           <div className="hidden sm:flex items-center bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-2 animate-pulse"></span>
-            <span className="text-xs font-semibold text-blue-700">Pasien: {selectedPatient.name}</span>
+            <span className="text-xs font-semibold text-blue-700 capitalize">
+              Mode: {currentUser.role}
+            </span>
           </div>
         ) : (
           <div className="hidden sm:flex items-center bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
@@ -67,85 +71,72 @@ export const Navbar: React.FC = () => {
       {/* Right Controls */}
       <div className="flex items-center gap-5">
         
-        {/* Smartwatch Connection Quick Status */}
-        {isLoggedIn && (
-          <div className="hidden md:flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 font-semibold">
-            <Watch className="h-3.5 w-3.5 text-blue-600" />
-            <span>Watch: <strong className="text-green-600">Aktif</strong> ({deviceStatus.battery}%)</span>
-          </div>
-        )}
-
         {/* Action Controls */}
         <div className="flex items-center gap-2">
           
-          {/* Emergency Cardiac Trigger Button */}
-          <button 
-            onClick={handleEmergencyClick}
-            className="p-2 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-full transition-all"
-            title="DARURAT MEDIS!"
-          >
-            <ShieldAlert className="h-5 w-5 animate-bounce" />
-          </button>
-
-          {/* Notifications Button */}
-          <button 
-            onClick={() => {
-              if (!isLoggedIn) {
-                triggerToast('Silakan login untuk memantau notifikasi harian.', 'warning');
-                return;
-              }
-              triggerToast('Pemberitahuan: Tidak ada anomali atau laporan medis baru harian.', 'success');
-            }}
-            className="p-2 text-slate-600 hover:bg-slate-100 hover:text-blue-600 rounded-full transition-all relative"
-            title="Notifikasi"
-          >
-            <Bell className="h-5 w-5" />
-            {isLoggedIn && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+          {/* Mobile-only Action Icons */}
+          <div className="md:hidden flex items-center gap-2">
+            {/* Smartwatch Button (Admin Only) */}
+            {isLoggedIn && currentUser?.role === 'admin' && (
+              <button 
+                onClick={() => setActiveView('device')}
+                className={`p-2 rounded-full transition-all cursor-pointer ${activeView === 'device' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'}`}
+                title="Integrasi Smartwatch"
+              >
+                <Watch className="h-5 w-5" />
+              </button>
             )}
-          </button>
 
-          {/* Settings Button */}
-          <button 
-            onClick={() => setActiveView('analysis')}
-            className="p-2 text-slate-600 hover:bg-slate-100 hover:text-blue-600 rounded-full transition-all"
-            title="Kriteria Risiko Jantung"
-          >
-            <Settings className="h-5 w-5" />
-          </button>
+            {/* Tutorial Button */}
+            <button 
+              onClick={() => setActiveView('tutorial')}
+              className={`p-2 rounded-full transition-all cursor-pointer ${activeView === 'tutorial' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'}`}
+              title="Panduan Pengguna"
+            >
+              <HelpCircle className="h-5 w-5" />
+            </button>
 
-          {/* Divider */}
-          <span className="w-px h-6 bg-slate-200 mx-1"></span>
+            {/* About Button */}
+            <button 
+              onClick={() => setActiveView('about')}
+              className={`p-2 rounded-full transition-all cursor-pointer ${activeView === 'about' ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'}`}
+              title="Tentang Sistem"
+            >
+              <Info className="h-5 w-5" />
+            </button>
+
+            {/* Divider */}
+            <span className="w-px h-6 bg-slate-200 mx-1"></span>
+          </div>
 
           {/* Login/Logout Profile Action */}
-          {isLoggedIn ? (
+          {isLoggedIn && currentUser ? (
             <div className="flex items-center gap-2.5">
-              {/* Patient Switcher Dropdown */}
-              <select
-                value={selectedPatient.id}
-                onChange={(e) => setSelectedPatientId(e.target.value)}
-                className="hidden lg:block bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
-              >
-                {patients.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              
+              <div className="hidden lg:flex flex-col text-right mr-1">
+                <span className="text-xs font-bold text-slate-800">{currentUser.name}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{currentUser.role}</span>
+              </div>
 
               {/* User Profile avatar */}
               <div 
                 onClick={() => setActiveView('profile')}
-                className="h-9 w-9 rounded-full overflow-hidden border-2 border-blue-600 hover:scale-105 transition-transform cursor-pointer shrink-0"
+                className="h-9 w-9 rounded-full overflow-hidden border-2 border-blue-600 hover:scale-105 transition-transform cursor-pointer shrink-0 bg-slate-100 flex items-center justify-center text-blue-600"
                 title="Profil Saya"
               >
-                <img 
-                  className="w-full h-full object-cover" 
-                  src={selectedPatient.avatarUrl} 
-                  alt={selectedPatient.name}
-                />
+                {currentUser.role === 'dokter' ? (
+                  <img 
+                    className="w-full h-full object-cover" 
+                    src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&h=100&q=80" 
+                    alt={currentUser.name}
+                  />
+                ) : (
+                  <User className="h-5 w-5" />
+                )}
               </div>
               <button
                 onClick={() => {
-                  triggerConfirm('Apakah Anda yakin ingin keluar dari akun?', () => {
+                  triggerConfirm('Apakah Anda yakin ingin keluar dari portal medis?', () => {
                     logout();
                   });
                 }}

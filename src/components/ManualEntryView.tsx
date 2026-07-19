@@ -1,53 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useHealth } from '../context/HealthContext';
-import { ShieldAlert, History, Activity, Sparkles, Check, Info } from 'lucide-react';
-import { ImageModal } from './ImageModal';
+import { Activity, Plus, Search, Users, FileEdit, X, Save, CheckCircle, Trash2 } from 'lucide-react';
+import { Patient } from '../types';
 
 export const ManualEntryView: React.FC = () => {
-  const { selectedPatient, addManualEntry, isLoggedIn, setShowLoginModal, triggerConfirm, triggerToast, setActiveView } = useHealth();
+  const { patients, isLoggedIn, setShowLoginModal, addPatient, deletePatient, resetPatients, triggerConfirm } = useHealth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [resetClicks, setResetClicks] = useState(0);
 
-  // Populate form with current selected patient's values initially
-  const [systolic, setSystolic] = useState<number>(selectedPatient ? selectedPatient.systolic : 120);
-  const [diastolic, setDiastolic] = useState<number>(selectedPatient ? selectedPatient.diastolic : 80);
-  const [cholesterol, setCholesterol] = useState<number>(selectedPatient ? selectedPatient.cholesterol : 180);
-  const [bloodSugar, setBloodSugar] = useState<number>(selectedPatient ? selectedPatient.bloodSugar : 100);
-  const [chestPain, setChestPain] = useState<boolean>(selectedPatient ? selectedPatient.symptoms.includes('Nyeri Dada (Chest Pain)') : false);
-  const [shortnessOfBreath, setShortnessOfBreath] = useState<boolean>(selectedPatient ? selectedPatient.symptoms.includes('Sesak Napas (Shortness of Breath)') : false);
-  const [palpitation, setPalpitation] = useState<boolean>(selectedPatient ? selectedPatient.symptoms.includes('Palpitasi Jantung') : false);
-  const [extremeFatigue, setExtremeFatigue] = useState<boolean>(selectedPatient ? selectedPatient.symptoms.includes('Kelelahan Ekstrim') : false);
-  const [notes, setNotes] = useState<string>(selectedPatient ? (selectedPatient.notes || '') : '');
+  // Form State
+  const [name, setName] = useState('');
+  const [age, setAge] = useState(40);
+  const [gender, setGender] = useState<'Laki-laki' | 'Perempuan'>('Laki-laki');
+  const [systolic, setSystolic] = useState(120);
+  const [diastolic, setDiastolic] = useState(80);
+  const [heartRate, setHeartRate] = useState(80);
+  const [cholesterol, setCholesterol] = useState(180);
+  const [bloodSugar, setBloodSugar] = useState(100);
+  const [comorbidities, setComorbidities] = useState(0.2);
+  const [weight, setWeight] = useState(65);
+  const [height, setHeight] = useState(165);
+  const [physicalActivity, setPhysicalActivity] = useState(0.5);
+  const [notes, setNotes] = useState('');
 
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
-  const [hasSavedSession, setHasSavedSession] = useState<boolean>(false);
-  const [lastEntry, setLastEntry] = useState({
-    date: '12 Okt 2023',
-    score: 0.84
-  });
+  // Calculate BMI on the fly
+  const calculatedBmi = weight && height ? Number((weight / Math.pow(height / 100, 2)).toFixed(1)) : 0;
 
-  const [modalConfig, setModalConfig] = useState({ isOpen: false, imageSrc: '', title: '' });
-  
-  const openModal = (title: string, imageSrc: string) => {
-    setModalConfig({ isOpen: true, title, imageSrc: `/assets/${imageSrc}` });
-  };
-  
-  const closeModal = () => {
-    setModalConfig(prev => ({ ...prev, isOpen: false }));
-  };
-
-  // Keep form in sync if user changes patient via navbar dropdown
-  useEffect(() => {
-    if (!selectedPatient) return;
-    setSystolic(selectedPatient.systolic);
-    setDiastolic(selectedPatient.diastolic);
-    setCholesterol(selectedPatient.cholesterol);
-    setBloodSugar(selectedPatient.bloodSugar);
-    setChestPain(selectedPatient.symptoms.includes('Nyeri Dada (Chest Pain)'));
-    setShortnessOfBreath(selectedPatient.symptoms.includes('Sesak Napas (Shortness of Breath)'));
-    setPalpitation(selectedPatient.symptoms.includes('Palpitasi Jantung'));
-    setExtremeFatigue(selectedPatient.symptoms.includes('Kelelahan Ekstrim'));
-    setNotes(selectedPatient.notes || '');
-  }, [selectedPatient]);
+  const isFormValid = 
+    name.trim() !== '' &&
+    age >= 1 &&
+    systolic >= 50 &&
+    diastolic >= 30 &&
+    heartRate >= 30 &&
+    comorbidities >= 0 &&
+    weight >= 1 &&
+    height >= 30 &&
+    physicalActivity >= 0;
 
   if (!isLoggedIn) {
     return (
@@ -55,9 +44,9 @@ export const ManualEntryView: React.FC = () => {
         <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <Activity className="h-8 w-8" />
         </div>
-        <h3 className="text-lg font-bold text-slate-800 mb-2">Input Data Terkunci</h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-2">Akses Terkunci</h3>
         <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-          Silakan masuk atau daftarkan akun Anda terlebih dahulu untuk mencatat data vital harian Anda secara mandiri dan mengalkulasi tingkat risiko kardiovaskular secara akurat.
+          Silakan masuk menggunakan akun Tenaga Medis (Admin/Dokter) untuk mengakses Master Data Pasien.
         </p>
         <button
           onClick={() => setShowLoginModal(true)}
@@ -69,346 +58,352 @@ export const ManualEntryView: React.FC = () => {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const filteredPatients = patients.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
-
-    setTimeout(() => {
-      // Save data via context
-      addManualEntry({
-        systolic: Number(systolic),
-        diastolic: Number(diastolic),
-        cholesterol: Number(cholesterol),
-        bloodSugar: Number(bloodSugar),
-        symptoms: {
-          chestPain,
-          shortnessOfBreath,
-          palpitation,
-          extremeFatigue
-        },
-        notes
-      });
-
-      // Update last entry informational widget
-      const now = new Date();
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-      const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-      
-      setLastEntry({
-        date: dateStr,
-        score: selectedPatient.topsisScore
-      });
-
-      setIsSaving(false);
-      setSaveSuccess(true);
-      setHasSavedSession(true);
-
-      setTimeout(() => {
-        setSaveSuccess(false);
-      }, 3000);
-    }, 1500);
-  };
-
-  const handleCancel = () => {
-    triggerConfirm('Batalkan pengisian form? Semua perubahan yang belum disimpan akan hilang.', () => {
-      // Reset form to patient's current values
-      setSystolic(selectedPatient.systolic);
-      setDiastolic(selectedPatient.diastolic);
-      setCholesterol(selectedPatient.cholesterol);
-      setBloodSugar(selectedPatient.bloodSugar);
-      setChestPain(selectedPatient.symptoms.includes('Nyeri Dada (Chest Pain)'));
-      setShortnessOfBreath(selectedPatient.symptoms.includes('Sesak Napas (Shortness of Breath)'));
-      setPalpitation(selectedPatient.symptoms.includes('Palpitasi Jantung'));
-      setExtremeFatigue(selectedPatient.symptoms.includes('Kelelahan Ekstrim'));
-      setNotes(selectedPatient.notes || '');
-      triggerToast('Pengisian form dibatalkan.', 'info');
+    addPatient({
+      name,
+      age,
+      gender,
+      initials: name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+      systolic,
+      diastolic,
+      heartRate,
+      cholesterol,
+      bloodSugar,
+      comorbidities,
+      bmi: calculatedBmi,
+      physicalActivity,
+      symptoms: [],
+      notes
     });
+    setIsModalOpen(false);
+    // Reset form
+    setName('');
+    setAge(40);
+    setSystolic(120);
+    setDiastolic(80);
+    setHeartRate(80);
+    setCholesterol(180);
+    setBloodSugar(100);
+    setComorbidities(0.2);
+    setWeight(65);
+    setHeight(165);
+    setPhysicalActivity(0.5);
+    setNotes('');
   };
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header section */}
-      <div>
-        <h1 className="font-sans text-2xl font-bold text-primary tracking-tight">Entri Kesehatan Harian</h1>
-        <p className="text-sm text-on-surface-variant font-medium mt-0.5">
-          Catat metrik vital Anda secara akurat untuk mendukung analisis algoritma TOPSIS.
-        </p>
-      </div>
-
-      {/* Main Form Input Panel */}
-      <div className="glass-card rounded-2xl p-6 md:p-8">
-        <form onSubmit={handleSubmit} className="space-y-8" id="healthDataForm">
-          
-          {/* Section: Blood Pressure */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="col-span-full border-b border-surface-container-highest pb-2 mb-2">
-              <h3 className="font-sans text-base font-bold text-primary flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
-                Tekanan Darah
-              </h3>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                  Sistolik (mmHg)
-                </label>
-                <button 
-                  type="button" 
-                  onClick={() => openModal('Referensi Tekanan Darah', 'Tabel Tekanan Darah.jpg')}
-                  className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
-                >
-                  <Info className="w-3 h-3" />
-                  Detail
-                </button>
-              </div>
-              <input 
-                type="number"
-                value={systolic}
-                onChange={(e) => setSystolic(Number(e.target.value))}
-                placeholder="Contoh: 120"
-                required
-                className="w-full h-11 px-4 bg-white border border-outline-variant rounded-xl text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-all"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                  Diastolik (mmHg)
-                </label>
-                <button 
-                  type="button" 
-                  onClick={() => openModal('Referensi Tekanan Darah', 'Tekanan Darah.jpg')}
-                  className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
-                >
-                  <Info className="w-3 h-3" />
-                  Detail
-                </button>
-              </div>
-              <input 
-                type="number"
-                value={diastolic}
-                onChange={(e) => setDiastolic(Number(e.target.value))}
-                placeholder="Contoh: 80"
-                required
-                className="w-full h-11 px-4 bg-white border border-outline-variant rounded-xl text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Section: Biomarkers */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="col-span-full border-b border-surface-container-highest pb-2 mb-2">
-              <h3 className="font-sans text-base font-bold text-primary flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                Biomarker Darah
-              </h3>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                  Kolesterol Total (mg/dL)
-                </label>
-                <button 
-                  type="button" 
-                  onClick={() => openModal('Referensi Kadar Kolesterol', 'tabel kolesterol.jpg')}
-                  className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
-                >
-                  <Info className="w-3 h-3" />
-                  Detail
-                </button>
-              </div>
-              <input 
-                type="number"
-                value={cholesterol}
-                onChange={(e) => setCholesterol(Number(e.target.value))}
-                placeholder="Contoh: 180"
-                required
-                className="w-full h-11 px-4 bg-white border border-outline-variant rounded-xl text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-all"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                  Gula Darah (mg/dL)
-                </label>
-                <button 
-                  type="button" 
-                  onClick={() => openModal('Referensi Gula Darah', 'tabel gula darah.png')}
-                  className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
-                >
-                  <Info className="w-3 h-3" />
-                  Detail
-                </button>
-              </div>
-              <input 
-                type="number"
-                value={bloodSugar}
-                onChange={(e) => setBloodSugar(Number(e.target.value))}
-                placeholder="Contoh: 95"
-                required
-                className="w-full h-11 px-4 bg-white border border-outline-variant rounded-xl text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Section: Symptoms */}
-          <div className="space-y-4">
-            <div className="border-b border-surface-container-highest pb-2 mb-2">
-              <h3 className="font-sans text-base font-bold text-primary flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5 text-primary" />
-                Catatan Gejala Harian
-              </h3>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className={`flex items-center gap-3 p-3 border rounded-xl hover:bg-surface-container transition-all cursor-pointer group ${
-                chestPain ? 'border-primary bg-primary-container/10' : 'border-outline-variant/70'
-              }`}>
-                <input 
-                  type="checkbox"
-                  checked={chestPain}
-                  onChange={(e) => setChestPain(e.target.checked)}
-                  className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary"
-                />
-                <span className="text-sm font-semibold text-on-surface">Nyeri Dada</span>
-              </label>
-              
-              <label className={`flex items-center gap-3 p-3 border rounded-xl hover:bg-surface-container transition-all cursor-pointer group ${
-                shortnessOfBreath ? 'border-primary bg-primary-container/10' : 'border-outline-variant/70'
-              }`}>
-                <input 
-                  type="checkbox"
-                  checked={shortnessOfBreath}
-                  onChange={(e) => setShortnessOfBreath(e.target.checked)}
-                  className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary"
-                />
-                <span className="text-sm font-semibold text-on-surface">Sesak Napas</span>
-              </label>
-              
-              <label className={`flex items-center gap-3 p-3 border rounded-xl hover:bg-surface-container transition-all cursor-pointer group ${
-                palpitation ? 'border-primary bg-primary-container/10' : 'border-outline-variant/70'
-              }`}>
-                <input 
-                  type="checkbox"
-                  checked={palpitation}
-                  onChange={(e) => setPalpitation(e.target.checked)}
-                  className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary"
-                />
-                <span className="text-sm font-semibold text-on-surface">Palpitasi Jantung</span>
-              </label>
-              
-              <label className={`flex items-center gap-3 p-3 border rounded-xl hover:bg-surface-container transition-all cursor-pointer group ${
-                extremeFatigue ? 'border-primary bg-primary-container/10' : 'border-outline-variant/70'
-              }`}>
-                <input 
-                  type="checkbox"
-                  checked={extremeFatigue}
-                  onChange={(e) => setExtremeFatigue(e.target.checked)}
-                  className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary"
-                />
-                <span className="text-sm font-semibold text-on-surface">Kelelahan Ekstrim</span>
-              </label>
-            </div>
-
-            {/* Additional notes */}
-            <div className="space-y-2 mt-4">
-              <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-                Catatan Tambahan Klinis
-              </label>
-              <textarea 
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Jelaskan lebih detail kondisi Anda hari ini..."
-                rows={4}
-                className="w-full p-4 border border-outline-variant rounded-xl text-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none resize-none transition-all bg-white"
-              />
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-4 pt-6 border-t border-surface-container-highest/45">
-            {hasSavedSession && (
-              <button 
-                type="button"
-                onClick={() => setActiveView('analysis')}
-                className="px-6 py-2.5 h-11 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all border border-blue-200"
-              >
-                Lihat Hasil Analisis
-              </button>
-            )}
-            <button 
-              type="button"
-              onClick={handleCancel}
-              disabled={isSaving}
-              className="px-6 py-2.5 h-11 text-xs font-bold text-primary hover:bg-surface-container-high rounded-xl transition-all"
-            >
-              Batal
-            </button>
-            
-            <button 
-              type="submit"
-              disabled={isSaving}
-              className={`px-8 py-2.5 h-11 text-xs font-bold text-on-primary rounded-xl shadow-md hover:scale-101 active:scale-98 transition-all flex items-center gap-2 ${
-                saveSuccess ? 'bg-green-600' : 'bg-primary hover:bg-primary/95'
-              }`}
-            >
-              {isSaving ? (
-                <>
-                  <span>Menyimpan...</span>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                </>
-              ) : saveSuccess ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  <span>Data Tersimpan!</span>
-                </>
-              ) : (
-                <span>Simpan Data</span>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Informational Cards (Bento Style) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Mengapa data penting bento block */}
-        <div className="col-span-1 md:col-span-2 glass-card rounded-2xl p-5 flex items-center gap-5">
-          <div className="h-16 w-16 rounded-2xl bg-primary-container/10 flex items-center justify-center shrink-0 border border-primary/10 shadow-sm text-primary">
-            <Activity className="h-8 w-8" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-primary uppercase tracking-wider">Mengapa Data Ini Penting?</h4>
-            <p className="text-xs text-on-surface-variant font-semibold mt-1 leading-relaxed">
-              Algoritma MADM kami memadukan data manual ini dengan data smartwatch untuk memberikan skor kesehatan jantung yang lebih presisi dan akurat.
-            </p>
-          </div>
-        </div>
-
-        {/* Entri Terakhir block */}
-        <div className="glass-card rounded-2xl p-5 bg-surface-container-high/30 flex flex-col justify-center border-dashed border-2 border-primary/20">
-          <div className="flex items-center gap-2 mb-2">
-            <History className="h-4 w-4 text-primary" />
-            <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Entri Terakhir</span>
-          </div>
-          <p className="text-base font-extrabold text-on-surface">{lastEntry.date}</p>
-          <p className="text-xs text-on-surface-variant font-bold mt-0.5">
-            Skor: {selectedPatient.topsisScore} ({selectedPatient.riskStatus === 'Tinggi' ? 'Tinggi' : selectedPatient.riskStatus === 'Sedang' ? 'Sedang' : 'Optimal'})
+    <div className="space-y-6 animate-fade-in pb-12">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="font-sans text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            <Users className="w-6 h-6 text-blue-600" />
+            Master Data Pasien
+          </h1>
+          <p className="text-xs text-slate-500 font-semibold mt-1">
+            Database nilai kriteria kesehatan mentah sebelum diproses oleh perhitungan MADM (TOPSIS).
           </p>
         </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          Tambah Pasien Baru
+        </button>
       </div>
-      
-      <ImageModal 
-        isOpen={modalConfig.isOpen} 
-        onClose={closeModal} 
-        imageSrc={modalConfig.imageSrc} 
-        title={modalConfig.title} 
-      />
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input 
+              type="text" 
+              placeholder="Cari ID atau Nama Pasien..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+            />
+          </div>
+          <span 
+            onClick={() => {
+              const newClicks = resetClicks + 1;
+              if (newClicks >= 3) {
+                triggerConfirm('Apakah Anda yakin ingin me-reset seluruh data pasien ke 12 pasien bawaan sistem? Semua pasien yang Anda tambahkan manual akan hilang.', () => {
+                  resetPatients();
+                  setResetClicks(0);
+                });
+                setResetClicks(0);
+              } else {
+                setResetClicks(newClicks);
+              }
+            }}
+            className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-all select-none"
+            title="Klik 3 kali untuk Reset Data"
+          >
+            Total: {patients.length} Pasien
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead>
+              <tr>
+                <th className="p-4 bg-white border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider">ID & Nama</th>
+                <th className="p-4 bg-white border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider text-center">Tekanan Darah (C1)</th>
+                <th className="p-4 bg-white border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider text-center">Detak Jantung (C2)</th>
+                <th className="p-4 bg-white border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider text-center">Komorbiditas (C3)</th>
+                <th className="p-4 bg-white border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider text-center">BMI (C4)</th>
+                <th className="p-4 bg-white border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider text-center">Aktivitas (C5)</th>
+                <th className="p-4 bg-white border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider">Gula / Kolesterol</th>
+                <th className="p-4 bg-white border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredPatients.map((patient) => (
+                <tr key={patient.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-black flex items-center justify-center text-xs shrink-0">
+                        {patient.initials}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800 text-sm">{patient.name}</div>
+                        <div className="text-[11px] font-mono text-slate-500 mt-0.5">{patient.id} • {patient.age}th • {patient.gender}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4 text-center">
+                    <span className={`font-mono text-sm font-bold ${patient.systolic > 140 || patient.diastolic > 90 ? 'text-red-600' : 'text-slate-700'}`}>
+                      {patient.systolic}/{patient.diastolic}
+                    </span>
+                  </td>
+                  <td className="p-4 text-center">
+                    <span className={`font-mono text-sm font-bold ${patient.heartRate > 100 || patient.heartRate < 60 ? 'text-amber-600' : 'text-slate-700'}`}>
+                      {patient.heartRate} bpm
+                    </span>
+                  </td>
+                  <td className="p-4 text-center">
+                    <span className={`text-xs font-bold px-2 py-1 rounded-md ${patient.comorbidities > 0.5 ? 'bg-red-50 text-red-600' : patient.comorbidities > 0.2 ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                      {(patient.comorbidities * 100).toFixed(0)}% Risk
+                    </span>
+                  </td>
+                  <td className="p-4 text-center font-mono text-sm font-bold text-slate-700">
+                    {patient.bmi.toFixed(1)}
+                  </td>
+                  <td className="p-4 text-center">
+                    <span className={`text-xs font-bold px-2 py-1 rounded-md ${patient.physicalActivity < 0.3 ? 'bg-red-50 text-red-600' : patient.physicalActivity < 0.6 ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                      Level {(patient.physicalActivity * 10).toFixed(0)}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <div className="text-xs text-slate-600">
+                      <span className="font-bold text-slate-800">{patient.bloodSugar}</span> mg/dL
+                    </div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      <span className="font-bold text-slate-800">{patient.cholesterol}</span> mg/dL
+                    </div>
+                  </td>
+                  <td className="p-4 text-center">
+                    <button 
+                      onClick={() => triggerConfirm(`Apakah Anda yakin ingin menghapus data pasien ${patient.name}?`, () => deletePatient(patient.id))}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Hapus Pasien"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filteredPatients.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="p-12 text-center text-slate-500 text-sm">
+                    Tidak ada pasien yang cocok dengan pencarian.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal Tambah Pasien */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                <FileEdit className="w-5 h-5 text-blue-600" />
+                Input Data Pasien Baru
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-lg transition-colors text-slate-500 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <form id="add-patient-form" onSubmit={handleSave} className="space-y-6">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600">Nama Lengkap</label>
+                    <input required type="text" value={name} 
+                      onChange={e => setName(e.target.value.replace(/[^a-zA-Z\s.,'-]/g, ''))} 
+                      maxLength={50}
+                      pattern="[a-zA-Z\s.,'-]+"
+                      title="Hanya huruf dan spasi yang diperbolehkan"
+                      className="w-full p-2 border border-slate-200 rounded-lg text-sm" placeholder="Contoh: Ahmad Sulaiman" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-600">Usia</label>
+                      <input required type="number" min="1" max="150" value={age || ''} 
+                        onChange={e => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value.slice(0, 3));
+                          setAge(val > 150 ? 150 : val);
+                        }} 
+                        onBlur={() => { if (age < 1 && age !== 0) setAge(1); }}
+                        className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-600">Gender</label>
+                      <select value={gender} onChange={e => setGender(e.target.value as any)} className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white">
+                        <option value="Laki-laki">Laki-laki</option>
+                        <option value="Perempuan">Perempuan</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-slate-100" />
+                
+                <h3 className="text-sm font-bold text-slate-800">Nilai Kriteria TOPSIS</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600">Tekanan Darah (Sistolik / Diastolik)</label>
+                    <div className="flex gap-2 items-center">
+                      <input required type="number" min="50" max="300" value={systolic || ''} 
+                        onChange={e => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value.slice(0, 3));
+                          setSystolic(val > 300 ? 300 : val);
+                        }} 
+                        onBlur={() => { if (systolic < 50 && systolic !== 0) setSystolic(50); }}
+                        className="w-full p-2 border border-slate-200 rounded-lg text-sm text-center" placeholder="120" />
+                      <span className="text-slate-400 font-black">/</span>
+                      <input required type="number" min="30" max="200" value={diastolic || ''} 
+                        onChange={e => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value.slice(0, 3));
+                          setDiastolic(val > 200 ? 200 : val);
+                        }} 
+                        onBlur={() => { if (diastolic < 30 && diastolic !== 0) setDiastolic(30); }}
+                        className="w-full p-2 border border-slate-200 rounded-lg text-sm text-center" placeholder="80" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600">Detak Jantung (HR)</label>
+                    <div className="flex items-center gap-2">
+                      <input required type="number" min="30" max="300" value={heartRate || ''} 
+                        onChange={e => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value.slice(0, 3));
+                          setHeartRate(val > 300 ? 300 : val);
+                        }} 
+                        onBlur={() => { if (heartRate < 30 && heartRate !== 0) setHeartRate(30); }}
+                        className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
+                      <span className="text-xs text-slate-500 font-medium whitespace-nowrap">bpm</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600">Tingkat Komorbiditas (0.0 - 1.0)</label>
+                    <input required type="number" step="0.1" min="0" max="1" value={comorbidities || ''} 
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value.slice(0, 4));
+                        setComorbidities(val > 1 ? 1 : val);
+                      }} 
+                      onBlur={() => { if (comorbidities < 0) setComorbidities(0); }}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
+                    <p className="text-[10px] text-slate-500">0.0 = Tidak ada penyerta, 1.0 = Sangat kritis</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold text-slate-600">Berat Badan (kg) / Tinggi (cm)</label>
+                      {calculatedBmi > 0 && (
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                          <CheckCircle className="w-3 h-3" />
+                          BMI: {calculatedBmi}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <input required type="number" min="1" max="300" step="0.1" value={weight || ''} 
+                        onChange={e => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value.slice(0, 5));
+                          setWeight(val > 300 ? 300 : val);
+                        }} 
+                        onBlur={() => { if (weight < 1 && weight !== 0) setWeight(1); }}
+                        className="w-full p-2 border border-slate-200 rounded-lg text-sm text-center" placeholder="Berat (kg)" />
+                      <span className="text-slate-400 font-black">/</span>
+                      <input required type="number" min="30" max="300" step="0.1" value={height || ''} 
+                        onChange={e => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value.slice(0, 5));
+                          setHeight(val > 300 ? 300 : val);
+                        }} 
+                        onBlur={() => { if (height < 30 && height !== 0) setHeight(30); }}
+                        className="w-full p-2 border border-slate-200 rounded-lg text-sm text-center" placeholder="Tinggi (cm)" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600">Aktivitas Fisik (0.0 - 1.0)</label>
+                    <input required type="number" step="0.1" min="0" max="1" value={physicalActivity || ''} 
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value.slice(0, 4));
+                        setPhysicalActivity(val > 1 ? 1 : val);
+                      }} 
+                      onBlur={() => { if (physicalActivity < 0) setPhysicalActivity(0); }}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-sm" />
+                    <p className="text-[10px] text-slate-500">0.0 = Kurang gerak, 1.0 = Sangat aktif</p>
+                  </div>
+                </div>
+
+                <hr className="border-slate-100" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600">Catatan Medis Tambahan</label>
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-slate-200 rounded-lg text-sm" rows={2} placeholder="Keterangan tambahan pasien..." />
+                </div>
+
+              </form>
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 cursor-pointer">
+                Batal
+              </button>
+              <button 
+                type="submit" 
+                form="add-patient-form" 
+                disabled={!isFormValid}
+                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-colors ${
+                  isFormValid 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' 
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <Save className="w-4 h-4" />
+                Simpan & Masukkan ke SPK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

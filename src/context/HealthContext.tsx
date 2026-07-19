@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Patient, CriteriaWeight, ManualEntry, SyncHistory, ViewType } from '../types';
+import { Patient, CriteriaWeight, ManualEntry, SyncHistory, ViewType, User, AHPMatrix, TopsisResult } from '../types';
 import { solveTopsis } from '../utils/topsis';
+import { calculateAHP } from '../utils/ahp';
 
 export interface ToastType {
   message: string;
@@ -14,6 +15,7 @@ export interface ConfirmType {
 }
 
 interface HealthContextType {
+  currentUser: User | null;
   activeView: ViewType;
   setActiveView: (view: ViewType) => void;
   patients: Patient[];
@@ -22,9 +24,14 @@ interface HealthContextType {
   selectedPatient: Patient;
   criteriaWeights: CriteriaWeight[];
   setCriteriaWeights: (weights: CriteriaWeight[]) => void;
+  ahpMatrix: AHPMatrix;
+  setAhpMatrix: (matrix: AHPMatrix) => void;
   syncHistory: SyncHistory[];
   addSyncRecord: (record: SyncHistory) => void;
   addManualEntry: (entry: Omit<ManualEntry, 'id' | 'date' | 'topsisScore'>) => void;
+  addPatient: (patient: Omit<Patient, 'id' | 'topsisScore' | 'riskStatus' | 'rank' | 'recommendation'>) => void;
+  deletePatient: (id: string) => void;
+  resetPatients: () => void;
   syncDevice: () => Promise<void>;
   isSyncing: boolean;
   deviceStatus: {
@@ -37,7 +44,8 @@ interface HealthContextType {
   toggleDeviceConnection: () => void;
   triggerHeartRateFluctuation: () => void;
   isLoggedIn: boolean;
-  login: (name?: string, gender?: 'Laki-laki' | 'Perempuan', age?: number) => void;
+  loginAdmin: () => void;
+  loginDokter: () => void;
   logout: () => void;
   toast: ToastType | null;
   setToast: (toast: ToastType | null) => void;
@@ -52,86 +60,25 @@ interface HealthContextType {
 const HealthContext = createContext<HealthContextType | undefined>(undefined);
 
 const initialPatients: Patient[] = [
-  {
-    id: '#P-8821',
-    name: 'Budi Santoso',
-    age: 58,
-    gender: 'Laki-laki',
-    initials: 'BS',
-    systolic: 142,
-    diastolic: 92,
-    heartRate: 112,
-    cholesterol: 240,
-    bloodSugar: 160,
-    comorbidities: 0.8,
-    bmi: 27.5,
-    physicalActivity: 0.3,
-    symptoms: ['Nyeri Dada (Chest Pain)', 'Palpitasi Jantung'],
-    topsisScore: 0.892,
-    riskStatus: 'Tinggi',
-    notes: 'Pasien mengeluhkan detak jantung meningkat tiba-tiba saat istirahat disertai nyeri dada ringan.',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAxXDZvYLuE2KW8MAH2SFSjvJOXU7a08HLITECoqYBYSegN52rJhrKWosL9cAIiyhxC6LyJ-y-ri4vnyft1liA8F4rHT1yYRpH_PG5XTmj-IoTmQ3SAoW7I5163RqrY1RKtajsPFPvINMQjhcMPRpRG5qC3DI7SVyXNo76hRolBjNgNfWcPB9Zt4Qo3czaBg8bpQl5dXAQlmtkaVOETqoIijMi9nEqFLvFPWLfp0b062xp0-I3hpt7VSAGy_mRqhz9EuTLLQm33Hnwo'
-  },
-  {
-    id: '#P-8822',
-    name: 'Siti Rahma',
-    age: 42,
-    gender: 'Perempuan',
-    initials: 'SR',
-    systolic: 120,
-    diastolic: 80,
-    heartRate: 72,
-    cholesterol: 195,
-    bloodSugar: 105,
-    comorbidities: 0.3,
-    bmi: 22.4,
-    physicalActivity: 0.6,
-    symptoms: [],
-    topsisScore: 0.541,
-    riskStatus: 'Sedang',
-    notes: 'Kondisi umum pasien stabil. Melaporkan kepatuhan obat yang baik.',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDq7yKXwzMM7SRcpLxe5n6-xedq_YBFLXC6QV_K3T09VFDqhWL325aqfiYPMwevHpbX888cmvPdWLx6pSKfGAm5NrKKNsHnhQzsXjyqa4Yk900zw8jOJcU_2-NvvW9RX-yLeiN0NGQbpqhFWD2zcZbTxLuvLMO9rg7PY3nqcEGq3douNGj0qR3rrgayNCdJoSqTcCbHA0Rvp82BDdhDcWTw6lQSygjBaxQzBRaYUD1c3MOscGZC3YHTz_1u6bTNZaiEdV-YwFfR536B'
-  },
-  {
-    id: '#P-8823',
-    name: 'Andi Wijaya',
-    age: 31,
-    gender: 'Laki-laki',
-    initials: 'AD',
-    systolic: 115,
-    diastolic: 75,
-    heartRate: 65,
-    cholesterol: 160,
-    bloodSugar: 90,
-    comorbidities: 0.1,
-    bmi: 21.0,
-    physicalActivity: 0.8,
-    symptoms: [],
-    topsisScore: 0.124,
-    riskStatus: 'Rendah',
-    notes: 'Pasien sangat aktif fisik, rutin berolahraga lari dan memiliki profil biomarker kardiovaskular optimal.',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDq7yKXwzMM7SRcpLxe5n6-xedq_YBFLXC6QV_K3T09VFDqhWL325aqfiYPMwevHpbX888cmvPdWLx6pSKfGAm5NrKKNsHnhQzsXjyqa4Yk900zw8jOJcU_2-NvvW9RX-yLeiN0NGQbpqhFWD2zcZbTxLuvLMO9rg7PY3nqcEGq3douNGj0qR3rrgayNCdJoSqTcCbHA0Rvp82BDdhDcWTw6lQSygjBaxQzBRaYUD1c3MOscGZC3YHTz_1u6bTNZaiEdV-YwFfR536B'
-  },
-  {
-    id: '#P-8824',
-    name: 'Maya Wulandari',
-    age: 65,
-    gender: 'Perempuan',
-    initials: 'MW',
-    systolic: 128,
-    diastolic: 84,
-    heartRate: 78,
-    cholesterol: 210,
-    bloodSugar: 120,
-    comorbidities: 0.5,
-    bmi: 24.2,
-    physicalActivity: 0.4,
-    symptoms: ['Kelelahan Ekstrim'],
-    topsisScore: 0.612,
-    riskStatus: 'Sedang',
-    notes: 'Mengalami keluhan lemas dan kelelahan akhir-akhir ini. Dianjurkan monitoring gula darah teratur.',
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAxXDZvYLuE2KW8MAH2SFSjvJOXU7a08HLITECoqYBYSegN52rJhrKWosL9cAIiyhxC6LyJ-y-ri4vnyft1liA8F4rHT1yYRpH_PG5XTmj-IoTmQ3SAoW7I5163RqrY1RKtajsPFPvINMQjhcMPRpRG5qC3DI7SVyXNo76hRolBjNgNfWcPB9Zt4Qo3czaBg8bpQl5dXAQlmtkaVOETqoIijMi9nEqFLvFPWLfp0b062xp0-I3hpt7VSAGy_mRqhz9EuTLLQm33Hnwo'
-  }
+  // 3 Kritis (Tinggi)
+  { id: '#P-001', name: 'Budi Santoso', age: 58, gender: 'Laki-laki', initials: 'BS', systolic: 165, diastolic: 95, heartRate: 112, cholesterol: 240, bloodSugar: 160, comorbidities: 0.8, bmi: 27.5, physicalActivity: 0.2, symptoms: ['Nyeri Dada', 'Palpitasi Jantung'], topsisScore: 0, riskStatus: 'Tinggi' },
+  { id: '#P-004', name: 'Maya Wulandari', age: 65, gender: 'Perempuan', initials: 'MW', systolic: 155, diastolic: 92, heartRate: 90, cholesterol: 250, bloodSugar: 170, comorbidities: 0.75, bmi: 29.0, physicalActivity: 0.2, symptoms: ['Nyeri Dada', 'Sesak Napas'], topsisScore: 0, riskStatus: 'Tinggi' },
+  { id: '#P-012', name: 'Lina Marlina', age: 55, gender: 'Perempuan', initials: 'LM', systolic: 150, diastolic: 90, heartRate: 88, cholesterol: 210, bloodSugar: 180, comorbidities: 0.7, bmi: 28.2, physicalActivity: 0.3, symptoms: ['Kelelahan Ekstrim'], topsisScore: 0, riskStatus: 'Tinggi' },
+
+  // 4 Perlu Perhatian (Sedang)
+  { id: '#P-002', name: 'Siti Rahma', age: 42, gender: 'Perempuan', initials: 'SR', systolic: 130, diastolic: 85, heartRate: 76, cholesterol: 205, bloodSugar: 115, comorbidities: 0.35, bmi: 24.5, physicalActivity: 0.4, symptoms: [], topsisScore: 0, riskStatus: 'Sedang' },
+  { id: '#P-005', name: 'Hendra Gunawan', age: 45, gender: 'Laki-laki', initials: 'HG', systolic: 135, diastolic: 85, heartRate: 78, cholesterol: 220, bloodSugar: 110, comorbidities: 0.4, bmi: 25.5, physicalActivity: 0.4, symptoms: ['Sesak Napas'], topsisScore: 0, riskStatus: 'Sedang' },
+  { id: '#P-006', name: 'Ratna Sari', age: 52, gender: 'Perempuan', initials: 'RS', systolic: 125, diastolic: 82, heartRate: 80, cholesterol: 195, bloodSugar: 105, comorbidities: 0.3, bmi: 23.5, physicalActivity: 0.5, symptoms: ['Palpitasi Jantung'], topsisScore: 0, riskStatus: 'Sedang' },
+  { id: '#P-010', name: 'Nina Herlina', age: 48, gender: 'Perempuan', initials: 'NH', systolic: 128, diastolic: 84, heartRate: 74, cholesterol: 200, bloodSugar: 112, comorbidities: 0.25, bmi: 24.0, physicalActivity: 0.5, symptoms: [], topsisScore: 0, riskStatus: 'Sedang' },
+
+  // 3 Stabil (Rendah)
+  { id: '#P-003', name: 'Andi Wijaya', age: 31, gender: 'Laki-laki', initials: 'AW', systolic: 118, diastolic: 78, heartRate: 68, cholesterol: 170, bloodSugar: 95, comorbidities: 0.15, bmi: 22.0, physicalActivity: 0.7, symptoms: [], topsisScore: 0, riskStatus: 'Rendah' },
+  { id: '#P-008', name: 'Dewi Lestari', age: 38, gender: 'Perempuan', initials: 'DL', systolic: 115, diastolic: 75, heartRate: 70, cholesterol: 165, bloodSugar: 92, comorbidities: 0.1, bmi: 21.5, physicalActivity: 0.8, symptoms: [], topsisScore: 0, riskStatus: 'Rendah' },
+  { id: '#P-009', name: 'Kusuma Wardani', age: 40, gender: 'Laki-laki', initials: 'KW', systolic: 112, diastolic: 72, heartRate: 65, cholesterol: 160, bloodSugar: 90, comorbidities: 0.05, bmi: 21.0, physicalActivity: 0.85, symptoms: [], topsisScore: 0, riskStatus: 'Rendah' },
+
+  // 2 Sangat Sehat (Sangat Rendah -> we'll classify as Rendah but with very good values)
+  { id: '#P-007', name: 'Ahmad Faisal', age: 28, gender: 'Laki-laki', initials: 'AF', systolic: 105, diastolic: 65, heartRate: 58, cholesterol: 140, bloodSugar: 80, comorbidities: 0, bmi: 19.5, physicalActivity: 1.0, symptoms: [], topsisScore: 0, riskStatus: 'Rendah' },
+  { id: '#P-011', name: 'Rizky Pratama', age: 25, gender: 'Laki-laki', initials: 'RP', systolic: 110, diastolic: 70, heartRate: 60, cholesterol: 150, bloodSugar: 85, comorbidities: 0, bmi: 20.5, physicalActivity: 0.95, symptoms: [], topsisScore: 0, riskStatus: 'Rendah' },
 ];
 
 const initialWeights: CriteriaWeight[] = [
@@ -142,6 +89,14 @@ const initialWeights: CriteriaWeight[] = [
   { id: 'c5', name: 'Level Aktivitas Fisik', description: 'Intensitas aktivitas fisik harian sebagai faktor protektif kardio.', weight: 0.100 }
 ];
 
+const initialAhpMatrix: AHPMatrix = [
+  [1, 2, 3, 4, 5],
+  [1/2, 1, 2, 3, 4],
+  [1/3, 1/2, 1, 2, 3],
+  [1/4, 1/3, 1/2, 1, 2],
+  [1/5, 1/4, 1/3, 1/2, 1]
+];
+
 const initialSyncHistory: SyncHistory[] = [
   { id: 's1', status: 'Berhasil', timestamp: 'Hari ini, 14:20', vitalsCount: 12 },
   { id: 's2', status: 'Berhasil', timestamp: 'Hari ini, 12:05', vitalsCount: 8 },
@@ -149,24 +104,43 @@ const initialSyncHistory: SyncHistory[] = [
 ];
 
 export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem('isLoggedIn') === 'true';
   });
+  
   const [activeView, setActiveView] = useState<ViewType>(() => {
     return (localStorage.getItem('activeView') as ViewType) || 'dashboard';
   });
+  
   const [patients, setPatients] = useState<Patient[]>(() => {
     const saved = localStorage.getItem('patients');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : initialPatients;
   });
+  
   const [selectedPatientId, setSelectedPatientId] = useState<string>(() => {
-    return localStorage.getItem('selectedPatientId') || '';
+    return localStorage.getItem('selectedPatientId') || initialPatients[0].id;
   });
-  const [criteriaWeights, setCriteriaWeights] = useState<CriteriaWeight[]>(initialWeights);
+  
+  const [criteriaWeights, setCriteriaWeights] = useState<CriteriaWeight[]>(() => {
+    const saved = localStorage.getItem('criteriaWeights');
+    return saved ? JSON.parse(saved) : initialWeights;
+  });
+  
+  const [ahpMatrix, setAhpMatrix] = useState<AHPMatrix>(() => {
+    const saved = localStorage.getItem('ahpMatrix');
+    return saved ? JSON.parse(saved) : initialAhpMatrix;
+  });
+  
   const [syncHistory, setSyncHistory] = useState<SyncHistory[]>(() => {
     const saved = localStorage.getItem('syncHistory');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : initialSyncHistory;
   });
+  
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [deviceStatus, setDeviceStatus] = useState({
     isConnected: true,
@@ -181,6 +155,10 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
 
   useEffect(() => {
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  }, [currentUser]);
+
+  useEffect(() => {
     localStorage.setItem('isLoggedIn', String(isLoggedIn));
   }, [isLoggedIn]);
 
@@ -191,6 +169,16 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     localStorage.setItem('patients', JSON.stringify(patients));
   }, [patients]);
+
+  useEffect(() => {
+    localStorage.setItem('criteriaWeights', JSON.stringify(criteriaWeights));
+  }, [criteriaWeights]);
+
+  useEffect(() => {
+    localStorage.setItem('ahpMatrix', JSON.stringify(ahpMatrix));
+  }, [ahpMatrix]);
+
+
 
   useEffect(() => {
     localStorage.setItem('selectedPatientId', selectedPatientId);
@@ -208,90 +196,103 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setConfirmDialog({ message, onConfirm });
   };
 
-  const login = (name: string = 'Budi Santoso', gender: 'Laki-laki' | 'Perempuan' = 'Laki-laki', age: number = 58) => {
-    setIsLoggedIn(true);
-    const primaryPatient: Patient = {
-      id: '#P-8821',
-      name: name,
-      age: age,
-      gender: gender,
-      initials: name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) || 'BS',
-      systolic: 142,
-      diastolic: 92,
-      heartRate: 112,
-      cholesterol: 240,
-      bloodSugar: 160,
-      comorbidities: 0.8,
-      bmi: 27.5,
-      physicalActivity: 0.3,
-      symptoms: ['Nyeri Dada (Chest Pain)', 'Palpitasi Jantung'],
-      topsisScore: 0.892,
-      riskStatus: 'Tinggi',
-      notes: 'Gunakan fitur "Sync Device" dengan smartwatch Anda untuk sinkronisasi otomatis metrik vital terbaru Anda secara real-time.',
-      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'
+  const addPatient = (patientData: Omit<Patient, 'id' | 'topsisScore' | 'riskStatus' | 'rank' | 'recommendation'>) => {
+    const maxIdNum = patients.reduce((max, p) => {
+      const num = parseInt(p.id.replace('#P-', ''), 10);
+      return !isNaN(num) && num > max ? num : max;
+    }, 0);
+    const newId = `#P-${String(maxIdNum + 1).padStart(3, '0')}`;
+    const initials = patientData.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    
+    const newPatient: Patient = {
+      ...patientData,
+      id: newId,
+      initials,
+      topsisScore: 0,
+      riskStatus: 'Sedang'
     };
     
-    setPatients([primaryPatient, ...initialPatients.filter(p => p.id !== '#P-8821')]);
-    setSelectedPatientId('#P-8821');
-    setSyncHistory(initialSyncHistory);
+    setPatients(prev => [...prev, newPatient]);
+    triggerToast('Data pasien berhasil ditambahkan & dimasukkan ke antrean SPK', 'success');
+  };
+
+  const deletePatient = (id: string) => {
+    setPatients(prev => prev.filter(p => p.id !== id));
+    triggerToast('Data pasien berhasil dihapus', 'success');
+  };
+
+  const resetPatients = () => {
+    setPatients(initialPatients);
+    triggerToast('Data dikembalikan ke 12 pasien awal (Bawaan Sistem)', 'success');
+  };
+
+  const loginAdmin = () => {
+    const user: User = { name: 'Admin Puskesmas', email: 'admin@puskesmas.go.id', role: 'admin' };
+    setCurrentUser(user);
+    setIsLoggedIn(true);
     setActiveView('dashboard');
-    triggerToast(`Selamat datang kembali, ${name}!`, 'success');
+    triggerToast(`Selamat datang, ${user.name}!`, 'success');
+  };
+
+  const loginDokter = () => {
+    const user: User = { name: 'Dr. Ahmad Setiawan', email: 'ahmad.setiawan@rs.com', role: 'dokter' };
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    setActiveView('dashboard');
+    triggerToast(`Selamat datang, ${user.name}!`, 'success');
   };
 
   const logout = () => {
+    setCurrentUser(null);
     setIsLoggedIn(false);
-    setPatients([]);
-    setSelectedPatientId('');
-    setSyncHistory([]);
     setActiveView('dashboard');
-    triggerToast('Anda telah keluar dari portal kesehatan Anda.', 'success');
+    triggerToast('Anda telah keluar dari sistem.', 'success');
   };
 
   // Calculate TOPSIS scores automatically when patients metrics or weights change
   useEffect(() => {
     if (patients.length === 0) return;
+    
+    // Process AHP
+    const ahpResults = calculateAHP(ahpMatrix);
+    const weights = initialWeights.map((w, index) => ({
+      ...w,
+      weight: ahpResults.weights[index]
+    }));
+    
+    if (JSON.stringify(weights) !== JSON.stringify(criteriaWeights)) {
+      setCriteriaWeights(weights);
+    }
+    
     const topsisPatients = deviceStatus.isConnected ? patients : patients.map(p => ({
       ...p,
       heartRate: 70,          // Normal resting HR (0 risk)
       physicalActivity: 1.0   // Max physical activity (0 risk)
     }));
-    const scores = solveTopsis(topsisPatients, criteriaWeights);
+    
+    const results = solveTopsis(topsisPatients, weights);
+    
     setPatients(prev => {
-      if (prev.length === 0) return prev;
-      return prev.map((p, idx) => {
-        const score = scores[idx] !== undefined ? scores[idx] : p.topsisScore;
-        let risk: 'Tinggi' | 'Sedang' | 'Rendah' = 'Rendah';
-        if (score >= 0.70) risk = 'Tinggi';
-        else if (score >= 0.40) risk = 'Sedang';
-
-        return {
-          ...p,
-          topsisScore: score,
-          riskStatus: risk
-        };
+      let changed = false;
+      const next = prev.map(p => {
+        const res = results.find(r => r.patientId === p.id);
+        if (res && (p.topsisScore !== res.score || p.rank !== res.rank || p.recommendation !== res.recommendation)) {
+          changed = true;
+          return {
+            ...p,
+            topsisScore: res.score,
+            rank: res.rank,
+            recommendation: res.recommendation
+          };
+        }
+        return p;
       });
+      return changed ? next : prev;
     });
-  }, [criteriaWeights, patients.length, deviceStatus.isConnected]); // Calculate on weight change, patient load, or connection change
+  }, [ahpMatrix, patients, deviceStatus.isConnected]); 
 
   const fallbackPatient: Patient = {
-    id: '',
-    name: 'Guest User',
-    age: 0,
-    gender: 'Laki-laki',
-    initials: 'GU',
-    systolic: 0,
-    diastolic: 0,
-    heartRate: 0,
-    cholesterol: 0,
-    bloodSugar: 0,
-    comorbidities: 0,
-    bmi: 0,
-    physicalActivity: 0,
-    symptoms: [],
-    topsisScore: 0,
-    riskStatus: 'Rendah',
-    notes: 'Silakan login terlebih dahulu untuk memuat data kesehatan personal Anda.',
-    avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'
+    id: '', name: 'Guest User', age: 0, gender: 'Laki-laki', initials: 'GU', systolic: 0, diastolic: 0, heartRate: 0, cholesterol: 0, bloodSugar: 0, comorbidities: 0, bmi: 0, physicalActivity: 0, symptoms: [], topsisScore: 0, riskStatus: 'Rendah', notes: 'Silakan login terlebih dahulu untuk memuat data kesehatan personal Anda.'
   };
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId) || patients[0] || fallbackPatient;
@@ -300,20 +301,17 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSyncHistory(prev => [record, ...prev]);
   };
 
-  // Triggers minor random updates to the current selected patient's smartwatch metrics (heart rate) to simulate real-time feed
   const triggerHeartRateFluctuation = () => {
     if (!isLoggedIn) return;
     setPatients(prev =>
       prev.map(p => {
         if (p.id === selectedPatientId) {
-          // Slight fluctuation (+- 3 BPM)
           const change = Math.floor(Math.random() * 7) - 3;
           let newHR = p.heartRate + change;
-          // Constrain HR to reasonable bounds based on patient clinical status
-          if (p.id === '#P-8821') {
-            newHR = Math.max(105, Math.min(125, newHR)); // Always stays high for Budi
+          if (p.id === '#P-001') {
+            newHR = Math.max(105, Math.min(125, newHR));
           } else {
-            newHR = Math.max(60, Math.min(85, newHR));
+            newHR = Math.max(60, Math.min(100, newHR));
           }
           return { ...p, heartRate: newHR };
         }
@@ -322,20 +320,18 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
-  // Updates the patient details with manual daily health logs and recalculates TOPSIS
   const addManualEntry = (entry: Omit<ManualEntry, 'id' | 'date' | 'topsisScore'>) => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || currentUser?.role !== 'admin') return;
+    
     const symptomsList: string[] = [];
     if (entry.symptoms.chestPain) symptomsList.push('Nyeri Dada');
     if (entry.symptoms.shortnessOfBreath) symptomsList.push('Sesak Napas');
     if (entry.symptoms.palpitation) symptomsList.push('Palpitasi Jantung');
     if (entry.symptoms.extremeFatigue) symptomsList.push('Kelelahan Ekstrim');
 
-    // Update patient record
     setPatients(prev => {
-      const updated = prev.map(p => {
+      return prev.map(p => {
         if (p.id === selectedPatientId) {
-          // Calculate high-stakes comorbidities penalty based on symptoms
           const symptomPenalty = symptomsList.length * 0.15;
           const updatedComorbidities = Math.min(1.0, p.comorbidities + symptomPenalty);
 
@@ -352,30 +348,11 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         return p;
       });
-
-      // Recalculate TOPSIS scores with the new metrics
-      const topsisPatients = deviceStatus.isConnected ? updated : updated.map(p => ({
-        ...p,
-        heartRate: 70,          // Normal resting HR (0 risk)
-        physicalActivity: 1.0   // Max physical activity (0 risk)
-      }));
-      const newScores = solveTopsis(topsisPatients, criteriaWeights);
-      return updated.map((p, idx) => {
-        const score = newScores[idx] !== undefined ? newScores[idx] : p.topsisScore;
-        let risk: 'Tinggi' | 'Sedang' | 'Rendah' = 'Rendah';
-        if (score >= 0.70) risk = 'Tinggi';
-        else if (score >= 0.40) risk = 'Sedang';
-
-        return {
-          ...p,
-          topsisScore: score,
-          riskStatus: risk
-        };
-      });
     });
+    
+    triggerToast('Data kesehatan pasien berhasil diperbarui!', 'success');
   };
 
-  // Simulates connecting to the smartwatch and fetching real-time cardiovascular vitals
   const toggleDeviceConnection = () => {
     setDeviceStatus(prev => ({
       ...prev,
@@ -385,47 +362,32 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const syncDevice = async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || currentUser?.role !== 'admin') return;
     setIsSyncing(true);
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // After syncing successfully, randomize selected patient metrics slightly towards healthier limits
     setPatients(prev => {
-      const updated = prev.map(p => {
+      return prev.map(p => {
         if (p.id === selectedPatientId) {
-          // Budi recovers slightly or metrics change
-          const newHR = p.id === '#P-8821' ? 78 : p.heartRate; // If Budi, sync drops to 78 BPM just like in the screenshots!
-          const newSys = p.id === '#P-8821' ? 118 : p.systolic; // 118 mmHg just like in screenshots
-          const newDia = p.id === '#P-8821' ? 76 : p.diastolic; // 76 mmHg
+          // Simulate smartwatch fetching new real-time data
+          // Randomize heart rate around their current HR, and slightly shift physical activity
+          const hrChange = Math.floor(Math.random() * 11) - 5; // -5 to +5
+          const newHR = Math.max(50, Math.min(180, p.heartRate + hrChange));
+          
+          const paChange = (Math.random() * 0.2) - 0.1; // -0.1 to +0.1
+          const newPA = Math.max(0, Math.min(1.0, p.physicalActivity + paChange));
+
           return {
             ...p,
             heartRate: newHR,
-            systolic: newSys,
-            diastolic: newDia,
-            // Clear symptoms if it stabilizes
-            symptoms: p.id === '#P-8821' ? [] : p.symptoms
+            physicalActivity: newPA
           };
         }
         return p;
       });
-
-      // Recalculate TOPSIS
-      const newScores = solveTopsis(updated, criteriaWeights);
-      return updated.map((p, idx) => {
-        const score = newScores[idx] !== undefined ? newScores[idx] : p.topsisScore;
-        let risk: 'Tinggi' | 'Sedang' | 'Rendah' = 'Rendah';
-        if (score >= 0.70) risk = 'Tinggi';
-        else if (score >= 0.40) risk = 'Sedang';
-
-        return {
-          ...p,
-          topsisScore: score,
-          riskStatus: risk
-        };
-      });
     });
 
-    const success = Math.random() > 0.15; // 85% success rate
+    const success = Math.random() > 0.15;
     const now = new Date();
     const timeStr = `Hari ini, ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
@@ -457,6 +419,7 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <HealthContext.Provider
       value={{
+        currentUser,
         activeView,
         setActiveView,
         patients,
@@ -465,16 +428,22 @@ export const HealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         selectedPatient,
         criteriaWeights,
         setCriteriaWeights,
+        ahpMatrix,
+        setAhpMatrix,
         syncHistory,
         addSyncRecord,
         addManualEntry,
+        addPatient,
+        deletePatient,
+        resetPatients,
         syncDevice,
         isSyncing,
         deviceStatus,
         triggerHeartRateFluctuation,
         toggleDeviceConnection,
         isLoggedIn,
-        login,
+        loginAdmin,
+        loginDokter,
         logout,
         toast,
         setToast,
