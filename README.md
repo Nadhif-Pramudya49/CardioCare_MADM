@@ -12,7 +12,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com)
 
-[🌐 Live Demo](#-deployment) · [📖 Dokumentasi](#-tentang-proyek) · [🧮 Metodologi](#-metodologi-madm) · [📚 Referensi](#-referensi-akademik)
+[🌐 Live Demo](https://cardio-care-madm.vercel.app/) · [🎥 Video Demo](https://youtu.be/ID16LN8uz9Y) · [📖 Dokumentasi](#-tentang-proyek) · [🧮 Metodologi](#-metodologi-madm) · [📚 Referensi](#-referensi-akademik)
 
 </div>
 
