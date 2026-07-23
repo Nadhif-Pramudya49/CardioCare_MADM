@@ -332,7 +332,7 @@ Sistem mengimplementasikan **Role-Based Access Control** dengan dua peran:
 **Universitas Islam Indonesia**  
 Fakultas Teknologi Industri — Informatika  
 Mata Kuliah: Sistem Cerdas dan Pendukung Keputusan  
-Semester 4 — Tahun Ajaran 2024/2025
+Semester 4 — Tahun Ajaran 2025/2026
 
 </div>
 
@@ -348,6 +348,6 @@ Proyek ini dikembangkan untuk keperluan akademik pada mata kuliah **Sistem Cerda
 
 **❤️ CardioCare MADM** — *Prioritizing Lives Through Data-Driven Decisions*
 
-Made with ❤️ by Kelompok MADM — UII 2025
+Made with ❤️ by Kelompok Menuju Indonesia Emas — UII 2026
 
 </div>
