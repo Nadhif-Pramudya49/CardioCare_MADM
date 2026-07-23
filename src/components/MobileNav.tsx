@@ -27,7 +27,7 @@ export const MobileNav: React.FC = () => {
 
   const fourthTab = role === 'admin'
     ? { id: 'ahp-setup' as ViewType, label: 'Bobot AHP', icon: Scale }
-    : { id: 'tutorial' as ViewType, label: 'Panduan', icon: HelpCircle };
+    : { id: 'calculation-detail' as ViewType, label: 'Hitungan', icon: Calculator };
 
   const tabs = [
     { id: 'dashboard' as ViewType, label: 'Utama', icon: LayoutDashboard },
