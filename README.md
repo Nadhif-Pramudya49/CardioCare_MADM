@@ -1,6 +1,6 @@
 <div align="center">
 
-# ❤️ CardioCare MADM
+# CardioCare MADM
 
 ### Sistem Pendukung Keputusan Prioritas Penanganan Pasien Kardiovaskular
 
@@ -346,8 +346,8 @@ Proyek ini dikembangkan untuk keperluan akademik pada mata kuliah **Sistem Cerda
 
 <div align="center">
 
-**❤️ CardioCare MADM** — *Prioritizing Lives Through Data-Driven Decisions*
+**CardioCare MADM** — *Prioritizing Lives Through Data-Driven Decisions*
 
-Made with ❤️ by Kelompok Menuju Indonesia Emas — UII 2026
+Made by Kelompok Menuju Indonesia Emas — UII 2026
 
 </div>
